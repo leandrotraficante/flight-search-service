@@ -657,7 +657,7 @@ export const cacheProvider = {
         console.warn('[Cache] Connection error, attempting reconnect...');
         return true;
       },
-      keyPrefix: `flightseach:${process.env.NODE_ENV ?? 'dev'}:`,
+      keyPrefix: `flightsearch:${process.env.NODE_ENV ?? 'dev'}:`,
     });
     
     client.on('connect', () => {
@@ -692,10 +692,10 @@ export const cacheProvider = {
      - `Math.min(times * 50, 2000)`: Delay creciente (50ms, 100ms, 150ms...) hasta máximo 2000ms
      - **Por qué**: Evita saturar Redis con reintentos muy rápidos
    - **`reconnectOnError: () => true`**: Reintenta conexión automáticamente en errores
-   - **`keyPrefix: 'flightseach:${NODE_ENV}:'`**: **Prefijo de claves**
+   - **`keyPrefix: 'flightsearch:${NODE_ENV}:'`**: **Prefijo de claves**
      - Todas las claves empiezan con este prefijo
      - **Por qué**: Evita colisiones entre ambientes (dev, staging, prod)
-     - Ejemplo: `flightseach:dev:user:123` vs `flightseach:prod:user:123`
+     - Ejemplo: `flightsearch:dev:user:123` vs `flightsearch:prod:user:123`
 
 4. **Event listeners**:
    - **`client.on('connect')`**: Se ejecuta cuando Redis se conecta
@@ -1394,7 +1394,7 @@ Usa el método `composeKey` para mantener consistencia:
 ```typescript
 // ✅ Bueno
 cache.composeKey('user', userId, 'profile')
-// → 'flightseach:dev:user:123:profile'
+// → 'flightsearch:dev:user:123:profile'
 
 // ❌ Malo (inconsistente)
 `user:${userId}:profile`

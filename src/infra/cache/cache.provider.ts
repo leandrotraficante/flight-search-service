@@ -1,10 +1,11 @@
 import Redis from 'ioredis';
 import { CACHE_CLIENT } from './cache.types';
 import { cacheConfigFactory } from './cache.config';
+import { LoggerService } from '../logging/logger.service';
 
 export const cacheProvider = {
   provide: CACHE_CLIENT,
-  useFactory: () => {
+  useFactory: (logger: LoggerService) => {
     // construye el cliente de Redis dinámicamente
     const config = cacheConfigFactory(); // Usa configuación centralizada
     const client = new Redis({
@@ -16,23 +17,23 @@ export const cacheProvider = {
       retryStrategy: (times) => {
         // Evita que Redis quiera reconectar infinitas veces, se quede colgado, haga demasiadas reconexiones sin delay
         const delay = Math.min(times * 50, 2000);
-        console.log(`[Cache] Retry #${times}, waiting ${delay}ms`);
+        logger.debug(`[Cache] Retry #${times}, waiting ${delay}ms`);
         return delay;
       },
       reconnectOnError: () => {
         // si hay un error grave, se fuerza la reconexión
-        console.warn('[Cache] Connection error, attempting reconnect...');
+        logger.warn('[Cache] Connection error, attempting reconnect...');
         return true;
       },
-      keyPrefix: `flightseach:${process.env.NODE_ENV ?? 'dev'}:`, // cada key almacenada será flightsearch:dev:KEY
+      keyPrefix: `flightsearch:${process.env.NODE_ENV ?? 'dev'}:`, // cada key almacenada será flightsearch:dev:KEY
       // evita: colisiones entre ambientes, borrar datos de otro entorno, mezclar datos en produccion
     });
     // log minimo - saber si Redis esta conectado o falló
     client.on('connect', () => {
-      console.log('[Cache] Redis connected');
+      logger.info('[Cache] Redis connected');
     });
     client.on('error', (error) => {
-      console.log('[Cache] Redis error', error);
+      logger.error('[Cache] Redis error', undefined, undefined, { error });
     });
     return client;
   },
