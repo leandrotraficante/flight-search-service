@@ -57,4 +57,4 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Other files
 ARCHITECTURE_DESIGN.md
-IMPLEMENTATION_DESIGN.md
+IMPLEMENTATION_CHECKLIST.md
