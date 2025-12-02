@@ -1,90 +1,170 @@
-// Importamos los decoradores de NestJS para inyección de dependencias
+// Importamos decoradores y utilidades de NestJS para inyección de dependencias y logging
 import { Inject, Injectable } from '@nestjs/common';
-// Importamos el token de inyección (un string constante que identifica el provider)
+// Importamos el token de inyección (valor constante) que identifica al cliente de cache
 import { CACHE_CLIENT } from './cache.types';
-// Importamos el tipo de la interfaz (usamos 'import type' porque solo se usa como tipo, no como valor)
+// Importamos el tipo/interfaz del cliente (solo para tipado, no se incluye en el código compilado)
 import type { CacheClient } from './cache.types';
+import { LoggerService } from '../logging/logger.service';
 
-// @Injectable() marca esta clase como un servicio que puede ser inyectado en otros componentes
-// NestJS creará una instancia singleton de este servicio automáticamente
+// Decorador que marca esta clase como un servicio inyectable en NestJS
 @Injectable()
 export class CacheService {
-  // Constructor con inyección de dependencias
+  // Contador de hits: cada vez que encontramos un valor en cache, incrementamos esto
+  // Es privado para que solo esta clase pueda modificarlo
+  private hitCount = 0;
+  // Contador de misses: cada vez que NO encontramos un valor en cache, incrementamos esto
+  // Nos ayuda a medir la efectividad del cache
+  private missCount = 0;
+
+  // Constructor con inyección de dependencias: NestJS inyecta automáticamente el cliente de cache
   constructor(
-    // @Inject(CACHE_CLIENT) le dice a NestJS que inyecte el provider identificado por el token CACHE_CLIENT
-    // Esto permite desacoplar la implementación concreta (ioredis) de esta clase
+    // @Inject indica qué token usar para buscar la dependencia en el contenedor de NestJS
+    // CACHE_CLIENT es el token que identifica la instancia de Redis/cache que queremos
     @Inject(CACHE_CLIENT)
-    // private readonly: solo accesible dentro de la clase y no se puede reasignar después de la construcción
-    // CacheClient es la interfaz que define el contrato que debe cumplir el cliente de cache
+    // readonly previene modificaciones accidentales después de la inicialización
+    // CacheClient es la interfaz que define los métodos disponibles (get, set, del)
     private readonly client: CacheClient,
+    private readonly logger: LoggerService,
   ) {}
 
-  // Método helper para crear keys consistentes y evitar errores de formato
-  // Usa rest parameters (...parts) para aceptar cualquier cantidad de strings
+  /**
+   * Crear keys consistentes para evitar errores humanos.
+   * Este método ayuda a construir keys de forma uniforme usando el patrón de separación por ':'
+   */
   composeKey(...parts: string[]): string {
-    // filter(Boolean) elimina valores falsy (null, undefined, '', etc.) para evitar keys inválidas
-    // join(':') une las partes con ':' que es el separador estándar en Redis para crear jerarquías
-    // Ejemplo: composeKey('user', '123', 'profile') -> 'user:123:profile'
+    // filter(Boolean) elimina valores falsy (null, undefined, '', 0, false)
+    // Esto previene keys malformadas como "user::123" si alguna parte está vacía
+    // join(':') une las partes con ':' como separador, estilo Redis (ej: "user:profile:123")
     return parts.filter(Boolean).join(':');
   }
 
-  // Método genérico para obtener valores desde Redis
-  // <T = any> permite especificar el tipo de dato esperado, con 'any' como default
+  /**
+   * Obtener valor desde Redis
+   * Método genérico que intenta parsear JSON automáticamente, pero fallback a string si falla
+   */
   async get<T = any>(key: string): Promise<T | null> {
-    // Llama al método get del cliente Redis que devuelve el valor como string o null si no existe
-    const raw = await this.client.get(key);
-    // Si no hay valor, retornamos null inmediatamente (early return pattern)
-    if (!raw) return null;
+    // try-catch externo: captura errores de conexión o problemas con Redis
     try {
-      // Intentamos parsear el JSON porque guardamos los valores serializados como JSON
-      // as T hace un type assertion al tipo genérico especificado
-      return JSON.parse(raw) as T;
-    } catch {
-      // Si falla el parseo (por ejemplo, si el valor no es JSON válido), retornamos el valor raw
-      // Esto permite flexibilidad para guardar strings simples sin JSON
-      return raw as T;
+      // Obtenemos el valor crudo desde Redis (siempre es string o null)
+      const raw = await this.client.get(key);
+
+      // Si Redis devuelve null, significa que la key no existe en cache
+      if (raw === null) {
+        // Incrementamos el contador de misses para métricas
+        this.missCount++;
+        // Logging verbose para debugging: nos dice cuándo no encontramos algo
+        this.logger.debug(`MISS → ${key}`);
+        // Retornamos null para indicar que no hay valor cacheado
+        return null;
+      }
+
+      // Si llegamos aquí, encontramos el valor (HIT)
+      // Incrementamos el contador de hits para métricas
+      this.hitCount++;
+      // Logging para saber que encontramos el valor en cache
+      this.logger.info(`HIT → ${key}`);
+
+      // try-catch interno: intenta parsear como JSON, pero si falla devuelve el string crudo
+      try {
+        // JSON.parse convierte el string a objeto/array/valor JavaScript
+        // as T le dice a TypeScript que trate el resultado como el tipo genérico T
+        return JSON.parse(raw) as T;
+      } catch {
+        // Si JSON.parse falla (no era JSON válido), devolvemos el string tal cual
+        // Esto permite cachear strings simples sin necesidad de JSON.stringify
+        // as T mantiene la compatibilidad de tipos
+        return raw as T;
+      }
+    } catch (err) {
+      // Si hay error de conexión o cualquier otro problema con Redis
+      // Loggeamos el error para debugging pero no lanzamos excepción
+      this.logger.error(`Error al obtener key ${key}`, undefined, undefined, { err }); // Retornamos null en lugar de lanzar error: el cache es "fail-safe"
+      // La aplicación puede continuar funcionando aunque el cache falle
+      return null;
     }
   }
 
-  // Método para guardar valores en Redis con TTL (Time To Live)
-  // TTL define cuánto tiempo (en segundos) el valor permanecerá en cache antes de expirar
+  /**
+   * Guardar valor con TTL (segundos)
+   * Convierte cualquier valor a JSON y lo guarda en Redis con expiración automática
+   */
   async set(key: string, value: any, ttlSeconds: number): Promise<void> {
-    // Serializamos el valor a JSON string porque Redis solo almacena strings
-    // Esto permite guardar objetos, arrays, etc. de forma estructurada
-    const payload = JSON.stringify(value);
-    // Llamamos al método set del cliente Redis con 4 argumentos:
-    // 1. key: la clave donde se guardará el valor
-    // 2. payload: el valor serializado como string
-    // 3. 'EX': comando de Redis que significa "expire" (expiración en segundos)
-    // 4. ttlSeconds: el tiempo en segundos hasta que expire el valor
-    // Redis automáticamente eliminará la key después de ttlSeconds segundos
-    await this.client.set(key, payload, 'EX', ttlSeconds);
+    // try-catch para manejar errores de conexión o escritura
+    try {
+      // JSON.stringify convierte cualquier objeto/array/valor a string JSON
+      // Esto permite guardar estructuras complejas en Redis (que solo acepta strings)
+      const payload = JSON.stringify(value);
+
+      // Guardamos en Redis con el comando SET
+      // 'EX' indica que el siguiente parámetro es el TTL en segundos
+      // ttlSeconds define cuántos segundos hasta que expire automáticamente
+      await this.client.set(key, payload, 'EX', ttlSeconds);
+
+      // Logging en nivel debug para rastrear qué se guarda (menos verboso que verbose)
+      this.logger.debug(`SET → ${key} (TTL ${ttlSeconds}s)`);
+    } catch (err) {
+      // Si falla la escritura, loggeamos pero no lanzamos excepción
+      // Esto permite que la app continúe aunque el cache falle
+      this.logger.error(`Error al setear key ${key}`, undefined, undefined, { err });
+    }
   }
 
-  // Método para eliminar manualmente una key del cache
-  // Útil cuando necesitamos invalidar cache antes de que expire naturalmente
+  /**
+   * Eliminar manualmente keys
+   * Útil para invalidar cache cuando los datos cambian en la fuente original
+   */
   async delete(key: string): Promise<void> {
-    // Llama al método del del cliente Redis que elimina la key especificada
-    // Retorna el número de keys eliminadas (0 si no existía, 1 si existía)
-    await this.client.del(key);
+    // try-catch para manejar errores de conexión
+    try {
+      // del() elimina la key de Redis, retorna el número de keys eliminadas
+      await this.client.del(key);
+      // Logging para confirmar la eliminación
+      this.logger.debug(`DEL → ${key}`);
+    } catch (err) {
+      // Si falla, loggeamos pero no lanzamos excepción (fail-safe)
+      this.logger.error(`Error al borrar key ${key}`, undefined, undefined, { err });
+    }
   }
 
-  // Patrón Cache-Aside: primero busca en cache, si no existe ejecuta la función y guarda el resultado
+  /**
+   * Cache-aside: si existe, devuelve; si no, ejecuta la función.
+   * Patrón común: primero busca en cache, si no está, ejecuta la función y guarda el resultado
+   */
   async wrap<T>(key: string, ttlSeconds: number, fn: () => Promise<T>): Promise<T> {
-    // Primero intentamos obtener el valor desde cache usando la key proporcionada
+    // Primero intentamos obtener el valor desde cache
+    // <T> indica que esperamos el mismo tipo que retorna la función
     const cached = await this.get<T>(key);
-    // Si encontramos un valor en cache (no es null), lo retornamos inmediatamente
-    // Esto evita ejecutar la función costosa y mejora el rendimiento
+    // Si encontramos algo en cache (no es null), lo devolvemos inmediatamente
+    // Esto evita ejecutar la función costosa (consultas a BD, APIs externas, etc.)
     if (cached !== null) {
       return cached;
     }
-    // Si no hay valor en cache, ejecutamos la función proporcionada (fn)
-    // Esta función típicamente hace una consulta a BD, API externa, etc.
+
+    // Si no está en cache, ejecutamos la función que obtiene los datos frescos
+    // Esta función puede ser costosa (consulta a BD, llamada a API, cálculo pesado)
     const result = await fn();
-    // Guardamos el resultado en cache para futuras consultas
-    // Usamos el mismo ttlSeconds para que expire después del tiempo especificado
+
+    // Guardamos el resultado en cache para próximas peticiones
+    // Con el TTL especificado, se invalidará automáticamente después de X segundos
     await this.set(key, result, ttlSeconds);
-    // Retornamos el resultado obtenido
+
+    // Retornamos el resultado fresco (tanto para uso inmediato como para cache futuro)
     return result;
+  }
+
+  /**
+   * Obtener métricas internas
+   * Útil para monitorear la efectividad del cache (ratio de hits vs misses)
+   */
+  getStats() {
+    // Retornamos un objeto con las métricas acumuladas
+    return {
+      // Número de veces que encontramos valores en cache (éxito)
+      hits: this.hitCount,
+      // Número de veces que NO encontramos valores en cache (fallo)
+      misses: this.missCount,
+    };
+    // Con estas métricas puedes calcular: hitRate = hits / (hits + misses)
+    // Un hitRate alto (>80%) indica que el cache está funcionando bien
   }
 }
