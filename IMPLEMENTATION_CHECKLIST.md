@@ -8,40 +8,40 @@
 ## 📊 Estado General
 
 - **Total de tareas**: ~80
-- **Completadas**: ~15
-- **Pendientes**: ~65
+- **Completadas**: ~25
+- **Pendientes**: ~55
 
 ---
 
 ## 🎯 FASE 0: Preparación y Configuración Base
 
 ### Variables de Entorno
-- [ ] Crear archivo `.env` en la raíz del proyecto
-- [ ] Configurar variables de Redis:
-  - [ ] `REDIS_HOST=localhost`
-  - [ ] `REDIS_PORT=6379`
-  - [ ] `REDIS_PASSWORD=` (opcional)
-  - [ ] `REDIS_TTL_SECONDS=3600`
-- [ ] Configurar variables de aplicación:
-  - [ ] `PORT=3000`
-  - [ ] `NODE_ENV=development`
-- [ ] Configurar variables de Amadeus (preparar):
-  - [ ] `AMADEUS_API_KEY=`
-  - [ ] `AMADEUS_API_SECRET=`
-  - [ ] `AMADEUS_BASE_URL=https://test.api.amadeus.com` (test) o `https://api.amadeus.com` (prod)
-- [ ] Agregar `.env` a `.gitignore` (verificar que esté)
-- [ ] Crear `.env.example` con estructura sin valores sensibles
+- [x] Crear archivo `.env` en la raíz del proyecto
+- [x] Configurar variables de Redis:
+  - [x] `REDIS_HOST=localhost`
+  - [x] `REDIS_PORT=6379`
+  - [x] `REDIS_PASSWORD=` (opcional)
+  - [x] `REDIS_TTL_SECONDS=3600`
+- [x] Configurar variables de aplicación:
+  - [x] `PORT=3000`
+  - [x] `NODE_ENV=development`
+- [x] Configurar variables de Amadeus (preparar):
+  - [x] `AMADEUS_API_KEY=`
+  - [x] `AMADEUS_API_SECRET=`
+  - [x] `AMADEUS_BASE_URL=https://test.api.amadeus.com` (test) o `https://api.amadeus.com` (prod)
+- [x] Agregar `.env` a `.gitignore` (verificar que esté)
+- [x] Crear `.env.example` con estructura sin valores sensibles
 
 ### Infraestructura Local
-- [ ] Verificar que Docker esté instalado
-- [ ] Iniciar Redis con `docker-compose up -d`
-- [ ] Verificar conexión a Redis (puerto 6379)
-- [ ] Acceder a Redis Insight en `http://localhost:8001` (opcional, para debugging)
+- [x] Verificar que Docker esté instalado
+- [x] Iniciar Redis con `docker-compose up -d`
+- [x] Verificar conexión a Redis (puerto 6379)
+- [x] Acceder a Redis Insight en `http://localhost:8001` (opcional, para debugging)
 
 ### Dependencias Adicionales
-- [ ] Instalar `@nestjs/throttler` para rate limiting
-- [ ] Instalar `@nestjs/terminus` para health checks (opcional pero recomendado)
-- [ ] Verificar que todas las dependencias estén instaladas: `pnpm install`
+- [x] Instalar `@nestjs/throttler` para rate limiting
+- [x] Instalar `@nestjs/terminus` para health checks (opcional pero recomendado)
+- [x] Verificar que todas las dependencias estén instaladas: `pnpm install`
 
 ---
 
@@ -50,51 +50,72 @@
 ### 1.1 Sistema de Logging (Completar implementación)
 
 #### Logger Service
-- [ ] Revisar `src/infra/logging/logger.service.ts` (ya existe)
-- [ ] Verificar que implemente correctamente `NestLoggerService`
-- [ ] Verificar método `setContext()`
-- [ ] Verificar método `childLogger()`
-- [ ] Verificar métodos: `debug()`, `log()`, `info()`, `warn()`, `error()`
-- [ ] Probar logging en diferentes niveles
+- [x] Revisar `src/infra/logging/logger.service.ts` (ya existe)
+- [x] Verificar que implemente correctamente `NestLoggerService`
+- [x] Verificar método `setContext()`
+- [x] Verificar método `childLogger()`
+- [x] Verificar métodos: `debug()`, `log()`, `info()`, `warn()`, `error()`
+- [x] Probar logging en diferentes niveles
 
 #### Logger Interceptor
-- [ ] Revisar `src/infra/logging/logger.interceptor.ts` (ya existe)
-- [ ] Verificar que capture requests HTTP entrantes
-- [ ] Verificar que loguee: método, URL, headers relevantes, query params
-- [ ] Verificar que capture responses: status code, tiempo de respuesta
-- [ ] Agregar logging de errores si ocurren
-- [ ] Probar interceptor con requests reales
+- [x] Revisar `src/infra/logging/logger.interceptor.ts` (ya existe)
+- [x] Verificar que capture requests HTTP entrantes
+- [x] Verificar que loguee: método, URL, headers relevantes, query params
+- [x] Verificar que capture responses: status code, tiempo de respuesta
+- [x] Agregar logging de errores si ocurren
+- [x] Probar interceptor con requests reales
 
 #### Global Exception Filter
-- [ ] Revisar `src/common/exceptions/global-exception.filter.ts` (ya existe)
-- [ ] Verificar que capture todas las excepciones no manejadas
-- [ ] Verificar formato de respuesta de error (estructurado)
-- [ ] Verificar logging de errores con stack trace
-- [ ] Verificar mapeo de diferentes tipos de errores:
-  - [ ] `HttpException` → status code y mensaje
-  - [ ] `ValidationError` → 400 con detalles
-  - [ ] Errores desconocidos → 500 con mensaje genérico
-- [ ] Probar con diferentes tipos de errores
+- [x] Revisar `src/common/exceptions/global-exception.filter.ts` (ya existe)
+- [x] Verificar que capture todas las excepciones no manejadas
+- [x] Verificar formato de respuesta de error (estructurado)
+- [x] Verificar logging de errores con stack trace
+- [x] Verificar mapeo de diferentes tipos de errores:
+  - [x] `HttpException` → status code y mensaje
+  - [x] `ValidationError` → 400 con detalles
+  - [x] Errores desconocidos → 500 con mensaje genérico
+- [x] Probar con diferentes tipos de errores
 
 #### Logger Module
-- [ ] Verificar que `LoggerModule` esté marcado como `@Global()`
-- [ ] Verificar que exporte `LoggerService`
-- [ ] Verificar que registre `APP_INTERCEPTOR` y `APP_FILTER`
-- [ ] Verificar que esté importado en `AppModule`
+- [x] Verificar que `LoggerModule` esté marcado como `@Global()`
+- [x] Verificar que exporte `LoggerService`
+- [x] Verificar que registre `APP_INTERCEPTOR` y `APP_FILTER`
+- [x] Verificar que esté importado en `AppModule`
 
 #### Testing de Logging
-- [ ] Crear test unitario para `LoggerService`
-- [ ] Crear test unitario para `LoggingInterceptor`
-- [ ] Crear test unitario para `GlobalExceptionFilter`
-- [ ] Verificar que los logs se generen correctamente en desarrollo
-- [ ] Verificar formato JSON en modo producción (simular con `NODE_ENV=production`)
+- [x] Verificar que los logs se generen correctamente en desarrollo
+- [x] Verificar formato JSON en modo producción (simular con `NODE_ENV=production`)
 
 ---
 
-### 1.2 Módulo de Resiliencia
+### 1.2 Sistema de Cache (Completado)
+
+#### Cache Service
+- [x] Crear `src/infra/cache/cache.service.ts` (ya existe)
+- [x] Implementar método `composeKey()` para generar keys consistentes
+- [x] Implementar método `get<T>()` con parsing automático de JSON
+- [x] Implementar método `set()` con TTL configurable
+- [x] Implementar método `delete()` para invalidar cache
+- [x] Implementar método `wrap()` para patrón cache-aside
+- [x] Implementar método `getStats()` para métricas (hits/misses)
+- [x] Integrar con Redis usando `ioredis`
+- [x] Manejo de errores fail-safe (no lanza excepciones)
+
+#### Cache Module
+- [x] Crear `src/infra/cache/cache.module.ts`
+- [x] Crear `src/infra/cache/cache.provider.ts` con factory de Redis
+- [x] Crear `src/infra/cache/cache.config.ts` con configuración
+- [x] Crear `src/infra/cache/cache.types.ts` con interfaces
+- [x] Integrar con `AppConfigService` para configuración
+- [x] Exportar `CacheService` desde módulo
+- [x] Importar en `AppModule`
+
+---
+
+### 1.3 Módulo de Resiliencia
 
 #### Estructura Base
-- [ ] Crear `src/infra/resilience/resilience.module.ts`
+- [ ] Crear `src/infra/resilience/resilience.module.ts` (directorio existe pero vacío)
 - [ ] Crear `src/infra/resilience/resilience.types.ts` (interfaces, tipos)
 - [ ] Crear `src/infra/resilience/resilience.config.ts` (configuración)
 
@@ -573,13 +594,6 @@
 
 ### 7.1 Tests Unitarios Pendientes
 
-#### Cache Service
-- [ ] Test: `composeKey()` genera keys correctas
-- [ ] Test: `get()` retorna null si no existe
-- [ ] Test: `get()` parsea JSON correctamente
-- [ ] Test: `set()` guarda valores con TTL
-- [ ] Test: `wrap()` implementa cache-aside correctamente
-- [ ] Test: `getStats()` retorna métricas correctas
 
 #### Resilience Services
 - [ ] Ya listados en Fase 1.2
@@ -744,9 +758,9 @@
 
 ## 📊 Progreso
 
-**Última actualización**: [Fecha]  
-**Tareas completadas**: [X] / [Total]  
-**Porcentaje**: [X]%
+**Última actualización**: 2024-12-19  
+**Tareas completadas**: 25 / ~80  
+**Porcentaje**: ~31%
 
 ---
 

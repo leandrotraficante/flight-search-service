@@ -2,12 +2,14 @@ import Redis from 'ioredis';
 import { CACHE_CLIENT } from './cache.types';
 import { cacheConfigFactory } from './cache.config';
 import { LoggerService } from '../logging/logger.service';
+import { AppConfigService } from '../../config/config';
 
 export const cacheProvider = {
   provide: CACHE_CLIENT,
-  useFactory: (logger: LoggerService) => {
+  inject: [LoggerService, AppConfigService],
+  useFactory: (logger: LoggerService, appConfigService: AppConfigService) => {
     // construye el cliente de Redis dinámicamente
-    const config = cacheConfigFactory(); // Usa configuación centralizada
+    const config = cacheConfigFactory(appConfigService); // Usa configuación centralizada
     const client = new Redis({
       // crea el cliente de Redis
       host: config.host,
@@ -25,7 +27,7 @@ export const cacheProvider = {
         logger.warn('[Cache] Connection error, attempting reconnect...');
         return true;
       },
-      keyPrefix: `flightsearch:${process.env.NODE_ENV ?? 'dev'}:`, // cada key almacenada será flightsearch:dev:KEY
+      keyPrefix: `flightsearch:${appConfigService.nodeEnv}:`, // cada key almacenada será flightsearch:dev:KEY
       // evita: colisiones entre ambientes, borrar datos de otro entorno, mezclar datos en produccion
     });
     // log minimo - saber si Redis esta conectado o falló

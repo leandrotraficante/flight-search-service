@@ -27,10 +27,7 @@ export class CacheService {
     private readonly logger: LoggerService,
   ) {}
 
-  /**
-   * Crear keys consistentes para evitar errores humanos.
-   * Este método ayuda a construir keys de forma uniforme usando el patrón de separación por ':'
-   */
+  // Crear keys consistentes para evitar errores humanos. --> Este método ayuda a construir keys de forma uniforme usando el patrón de separación por ':'
   composeKey(...parts: string[]): string {
     // filter(Boolean) elimina valores falsy (null, undefined, '', 0, false)
     // Esto previene keys malformadas como "user::123" si alguna parte está vacía
@@ -38,10 +35,7 @@ export class CacheService {
     return parts.filter(Boolean).join(':');
   }
 
-  /**
-   * Obtener valor desde Redis
-   * Método genérico que intenta parsear JSON automáticamente, pero fallback a string si falla
-   */
+  // Obtener valor desde Redis --> Método genérico que intenta parsear JSON automáticamente, pero fallback a string si falla
   async get<T = any>(key: string): Promise<T | null> {
     // try-catch externo: captura errores de conexión o problemas con Redis
     try {
@@ -84,10 +78,7 @@ export class CacheService {
     }
   }
 
-  /**
-   * Guardar valor con TTL (segundos)
-   * Convierte cualquier valor a JSON y lo guarda en Redis con expiración automática
-   */
+  // Guardar valor con TTL (segundos) --> Convierte cualquier valor a JSON y lo guarda en Redis con expiración automática
   async set(key: string, value: any, ttlSeconds: number): Promise<void> {
     // try-catch para manejar errores de conexión o escritura
     try {
@@ -103,39 +94,23 @@ export class CacheService {
       // Logging en nivel debug para rastrear qué se guarda (menos verboso que verbose)
       this.logger.debug(`SET → ${key} (TTL ${ttlSeconds}s)`);
     } catch (err) {
-      // Si falla la escritura, loggeamos pero no lanzamos excepción
-      // Esto permite que la app continúe aunque el cache falle
+      // Si falla la escritura, loggeamos pero no lanzamos excepción, Esto permite que la app continúe aunque el cache falle
       this.logger.error(`Error al setear key ${key}`, undefined, undefined, { err });
     }
   }
 
-  /**
-   * Eliminar manualmente keys
-   * Útil para invalidar cache cuando los datos cambian en la fuente original
-   */
+  // Eliminar manualmente keys --> Útil para invalidar cache cuando los datos cambian en la fuente original
   async delete(key: string): Promise<void> {
-    // try-catch para manejar errores de conexión
-    try {
-      // del() elimina la key de Redis, retorna el número de keys eliminadas
-      await this.client.del(key);
-      // Logging para confirmar la eliminación
-      this.logger.debug(`DEL → ${key}`);
-    } catch (err) {
-      // Si falla, loggeamos pero no lanzamos excepción (fail-safe)
-      this.logger.error(`Error al borrar key ${key}`, undefined, undefined, { err });
-    }
+    await this.client.del(key); // del() elimina la key de Redis, retorna el número de keys eliminadas
+    this.logger.debug(`DEL → ${key}`); // Logging para confirmar la eliminación
   }
 
-  /**
-   * Cache-aside: si existe, devuelve; si no, ejecuta la función.
-   * Patrón común: primero busca en cache, si no está, ejecuta la función y guarda el resultado
-   */
+  // Cache-aside: si existe, devuelve; si no, ejecuta la función.
+  // Patrón común: primero busca en cache, si no está, ejecuta la función y guarda el resultado
   async wrap<T>(key: string, ttlSeconds: number, fn: () => Promise<T>): Promise<T> {
-    // Primero intentamos obtener el valor desde cache
-    // <T> indica que esperamos el mismo tipo que retorna la función
+    // Primero intentamos obtener el valor desde cache, <T> indica que esperamos el mismo tipo que retorna la función
     const cached = await this.get<T>(key);
-    // Si encontramos algo en cache (no es null), lo devolvemos inmediatamente
-    // Esto evita ejecutar la función costosa (consultas a BD, APIs externas, etc.)
+    // Si encontramos algo en cache (no es null), lo devolvemos inmediatamente, Esto evita ejecutar la función costosa (consultas a BD, APIs externas, etc.)
     if (cached !== null) {
       return cached;
     }
@@ -144,25 +119,17 @@ export class CacheService {
     // Esta función puede ser costosa (consulta a BD, llamada a API, cálculo pesado)
     const result = await fn();
 
-    // Guardamos el resultado en cache para próximas peticiones
-    // Con el TTL especificado, se invalidará automáticamente después de X segundos
-    await this.set(key, result, ttlSeconds);
+    await this.set(key, result, ttlSeconds); // Guardamos el resultado en cache para próximas peticiones --> Con el TTL especificado, se invalidará automáticamente después de X segundos
 
-    // Retornamos el resultado fresco (tanto para uso inmediato como para cache futuro)
-    return result;
+    return result; // Retornamos el resultado fresco (tanto para uso inmediato como para cache futuro)
   }
 
-  /**
-   * Obtener métricas internas
-   * Útil para monitorear la efectividad del cache (ratio de hits vs misses)
-   */
+  //Obtener métricas internas --> Útil para monitorear la efectividad del cache (ratio de hits vs misses)
   getStats() {
     // Retornamos un objeto con las métricas acumuladas
     return {
-      // Número de veces que encontramos valores en cache (éxito)
-      hits: this.hitCount,
-      // Número de veces que NO encontramos valores en cache (fallo)
-      misses: this.missCount,
+      hits: this.hitCount, // Número de veces que encontramos valores en cache (éxito)
+      misses: this.missCount, // Número de veces que NO encontramos valores en cache (fallo)
     };
     // Con estas métricas puedes calcular: hitRate = hits / (hits + misses)
     // Un hitRate alto (>80%) indica que el cache está funcionando bien

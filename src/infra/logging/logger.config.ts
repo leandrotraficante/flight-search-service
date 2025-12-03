@@ -1,4 +1,5 @@
 import * as winston from 'winston'; // Importamos winston, permite registrar eventos de la aplicación
+import { AppConfigService } from '../../config/config';
 
 // format: contiene funciones para formatear los mensajes de log (timestamp, colorize, json, etc.)
 // transports: contiene los destinos donde se escribirán los logs (Console, File, etc.)
@@ -94,9 +95,9 @@ function buildLoggerFormat(env: string) {
 
 //  Esta es la función principal que configura el logger de winston para toda la aplicación.
 //  Exporta la configuración para que pueda ser usada en otros módulos (ej: logger.module.ts)
-export function buildLoggerConfig() {
+export function buildLoggerConfig(appConfigService: AppConfigService) {
   // Si no está definida, asumimos 'development' como valor por defecto
-  const env = process.env.NODE_ENV || 'development';
+  const env = appConfigService.nodeEnv;
 
   // Usamos el tipo winston.transport[] para evitar conflictos de tipo
   // Un transport es un destino donde se escriben los logs (consola, archivo, base de datos, etc.)
@@ -116,7 +117,7 @@ export function buildLoggerConfig() {
 
   // Agregar file transports sólo en producción
   // En desarrollo solo usamos consola para no llenar el disco con logs
-  if (env === 'production') {
+  if (appConfigService.isProduction) {
     // Agregamos un transport para archivo de errores
     loggerTransports.push(
       // transports.File escribe los logs en un archivo del sistema
