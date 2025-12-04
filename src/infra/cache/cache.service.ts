@@ -119,7 +119,19 @@ export class CacheService {
     // Esta función puede ser costosa (consulta a BD, llamada a API, cálculo pesado)
     const result = await fn();
 
-    await this.set(key, result, ttlSeconds); // Guardamos el resultado en cache para próximas peticiones --> Con el TTL especificado, se invalidará automáticamente después de X segundos
+    // Guardamos el resultado en cache de forma asíncrona y no bloqueante
+    // Si falla el guardado, no afecta la respuesta ya que el resultado ya fue obtenido
+    // Usamos .catch() para asegurar que cualquier error no se propague
+    this.set(key, result, ttlSeconds).catch((err) => {
+      // Si hay un error al guardar en cache, lo logueamos pero no afecta la respuesta
+      // Esto es importante porque el resultado ya fue retornado y la respuesta HTTP ya fue enviada
+      this.logger.error(
+        `Error al guardar en cache después de wrap (no crítico)`,
+        err instanceof Error ? err.stack : undefined,
+        undefined,
+        { key, ttlSeconds },
+      );
+    });
 
     return result; // Retornamos el resultado fresco (tanto para uso inmediato como para cache futuro)
   }

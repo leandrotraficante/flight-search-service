@@ -27,6 +27,12 @@ export class LoggingInterceptor implements NestInterceptor {
     const method: string = request.method;
     const originalUrl: string = request.originalUrl || request.url;
 
+    // Ignoramos peticiones comunes que los navegadores hacen automáticamente
+    // Estas peticiones no tienen rutas definidas y causan NotFoundException
+    // No necesitamos loguearlas porque son inofensivas y generan ruido en los logs
+    const ignoredPaths = ['/favicon.ico', '/robots.txt', '/.well-known'];
+    const shouldIgnore = ignoredPaths.some((path) => originalUrl.startsWith(path));
+
     // "User-Agent" útil para debuggin de clientes (navegadores, Postman, apps, etc.)
     const userAgent: string = request.get('user-agent') || '';
 
@@ -36,6 +42,12 @@ export class LoggingInterceptor implements NestInterceptor {
     // Identificamos controller y método que están ejecutando
     const controller = context.getClass().name;
     const handler = context.getHandler().name;
+
+    // Si es una petición que debemos ignorar, simplemente continuamos sin loguear
+    // Esto evita que se logueen errores de NotFoundException para estas peticiones
+    if (shouldIgnore) {
+      return next.handle();
+    }
 
     // Guardamos el timestamp inicial para medir la duración total de la request
     const startTime = Date.now();
@@ -84,6 +96,20 @@ export class LoggingInterceptor implements NestInterceptor {
         const errorName = error instanceof Error ? error.name : 'UnknownError';
         const errorMessage = error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
+
+        // Verificamos si es un NotFoundException para rutas comunes (favicon, etc.)
+        // Estos errores son inofensivos y no necesitan ser logueados como errores
+        const isHttpException = error && typeof error === 'object' && 'getStatus' in error;
+        const isNotFoundException =
+          isHttpException &&
+          typeof (error as { getStatus: () => number }).getStatus === 'function' &&
+          (error as { getStatus: () => number }).getStatus() === 404;
+
+        // Si es un NotFoundException para una ruta ignorada, no logueamos nada
+        if (isNotFoundException && shouldIgnore) {
+          // Re-lanzamos el error pero sin loguearlo (el filtro de excepciones lo manejará)
+          return throwError(() => error);
+        }
 
         this.logger.error(
           `Request failed`, // mensaje base

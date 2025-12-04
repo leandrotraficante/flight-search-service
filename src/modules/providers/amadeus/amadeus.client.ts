@@ -180,21 +180,6 @@ export class AmadeusClient {
     );
   }
 
-  // Helper para verificar si un error es un AxiosError
-  // Type guard de TypeScript que permite hacer type narrowing
-  // Parámetro: error - El error a verificar
-  // Retorna: true si el error es un AxiosError
-  private isAxiosError(error: unknown): error is AxiosError {
-    // AxiosError tiene una propiedad isAxiosError que siempre es true
-    // Esto permite identificar errores de Axios de forma segura
-    return (
-      typeof error === 'object' &&
-      error !== null &&
-      'isAxiosError' in error &&
-      (error as AxiosError).isAxiosError === true
-    );
-  }
-
   // Convierte un AxiosError a AmadeusApiError
   // Útil para unificar el manejo de errores cuando Axios falla
   // Parámetro: error - El AxiosError a convertir
