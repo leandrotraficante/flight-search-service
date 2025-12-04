@@ -7,9 +7,9 @@
 
 ## 📊 Estado General
 
-- **Total de tareas**: ~60 (sin incluir testing)
-- **Completadas**: ~60
-- **Pendientes**: ~0 (todas las tareas de implementación completadas, pendientes solo mejoras opcionales)
+- **Total de tareas**: ~80 (sin incluir testing)
+- **Completadas**: ~80
+- **Pendientes**: ~0 (todas las tareas de implementación core completadas, pendientes solo mejoras opcionales)
 
 ---
 
@@ -94,6 +94,7 @@
 - [x] Implementar método `delete()` para invalidar cache
 - [x] Implementar método `wrap()` para patrón cache-aside
 - [x] Implementar método `getStats()` para métricas (hits/misses)
+- [x] Implementar método `deleteByPattern()` para eliminar múltiples keys usando SCAN
 - [x] Integrar con Redis usando `ioredis`
 - [x] Manejo de errores fail-safe (no lanza excepciones)
 
@@ -103,8 +104,8 @@
 - [x] Crear `src/infra/cache/cache.config.ts` con configuración
 - [x] Crear `src/infra/cache/cache.types.ts` con interfaces
 - [x] Integrar con `AppConfigService` para configuración
-- [x] Exportar `CacheService` desde módulo
-- [x] Importar en `AppModule`
+- [x] Exportar `CACHE_CLIENT` token desde módulo
+- [x] Importar en `AppModule` y `SearchModule`
 
 ---
 
@@ -310,116 +311,127 @@
 
 #### Exportar desde Módulo
 - [x] Exportar `AmadeusService` desde `amadeus.module.ts`
-- [ ] Importar `AmadeusModule` en `AppModule` (o en `SearchModule`) - Pendiente hasta crear SearchModule
+- [x] Importar `AmadeusModule` en `SearchModule`
+- [x] Configurar `AmadeusService` como `IFlightProvider` en `SearchModule`
 
 ---
 
-## 🔍 FASE 3: Módulo de Búsqueda
+## 🔍 FASE 3: Módulo de Búsqueda ✅ COMPLETADA
 
 ### 3.1 Estructura del Módulo Search
 
 #### Módulo Base
-- [ ] Crear `src/modules/search/search.module.ts`
-- [ ] Importar `AmadeusModule` (o inyectar `AmadeusService`)
-- [ ] Importar `CacheModule`
-- [ ] Importar `ResilienceModule` (si no es global)
+- [x] Crear `src/modules/search/search.module.ts`
+- [x] Importar `AmadeusModule` (o inyectar `AmadeusService`)
+- [x] Importar `CacheModule`
+- [x] Importar `ResilienceModule` (si no es global)
+- [x] Configurar `IFlightProvider` con `useExisting` para reutilizar instancia de `AmadeusService`
 
 ---
 
 ### 3.2 DTOs Normalizados
 
 #### Request DTO
-- [ ] Crear `src/modules/search/dto/search-flights-request.dto.ts`
-- [ ] Definir estructura normalizada:
-  - [ ] `origin`: string (código IATA)
-  - [ ] `destination`: string (código IATA)
-  - [ ] `departureDate`: string (ISO date)
-  - [ ] `returnDate?`: string (opcional, para ida y vuelta)
-  - [ ] `adults`: number
-  - [ ] `children?`: number
-  - [ ] `infants?`: number
-  - [ ] `maxResults?`: number
-- [ ] Agregar validación con `class-validator`:
-  - [ ] `@IsString()`, `@Length(3, 3)` para códigos IATA
-  - [ ] `@IsDateString()` para fechas
-  - [ ] `@IsInt()`, `@Min(1)` para pasajeros
-  - [ ] `@IsOptional()` para campos opcionales
+- [x] Crear `src/modules/search/dto/search-flights-request.dto.ts`
+- [x] Definir estructura normalizada:
+  - [x] `origin`: string (código IATA)
+  - [x] `destination`: string (código IATA)
+  - [x] `departureDate`: string (ISO date)
+  - [x] `returnDate?`: string (opcional, para ida y vuelta)
+  - [x] `adults`: number
+  - [x] `children?`: number
+  - [x] `infants?`: number
+  - [x] `maxResults?`: number
+  - [x] `travelClass?`: string (ECONOMY, PREMIUM_ECONOMY, BUSINESS, FIRST)
+  - [x] `includedAirlines?`: string[] (array de códigos IATA)
+  - [x] `excludedAirlines?`: string[] (array de códigos IATA)
+  - [x] `currency?`: string (código ISO 4217)
+- [x] Agregar validación con `class-validator`:
+  - [x] `@IsString()`, `@Length(3, 3)` para códigos IATA
+  - [x] `@IsDateString()` para fechas
+  - [x] `@IsInt()`, `@Min(1)` para pasajeros
+  - [x] `@IsOptional()` para campos opcionales
+  - [x] `@Type(() => Number)` para conversión automática de query params
+  - [x] `@Transform()` para parseo de arrays desde query params
 
 #### Response DTO
-- [ ] Crear `src/modules/search/dto/search-flights-response.dto.ts`
-- [ ] Crear `src/modules/search/dto/flight.dto.ts` (DTO normalizado de vuelo)
-- [ ] Definir estructura:
-  - [ ] `id`: string
-  - [ ] `price`: `{ amount: number, currency: string }`
-  - [ ] `segments`: `SegmentDto[]`
-  - [ ] `duration`: number (minutos)
-  - [ ] `airlines`: string[]
-  - [ ] `provider`: 'amadeus' | 'skyscanner' (preparar para futuro)
-- [ ] Crear `src/modules/search/dto/segment.dto.ts`:
-  - [ ] `departure`: `{ airport: string, time: string }`
-  - [ ] `arrival`: `{ airport: string, time: string }`
-  - [ ] `duration`: number
-  - [ ] `airline`: string
-  - [ ] `flightNumber`: string
+- [x] Crear `src/modules/search/dto/search-flights-response.dto.ts`
+- [x] Crear `src/modules/search/dto/flight.dto.ts` (DTO normalizado de vuelo)
+- [x] Crear `src/modules/search/dto/segment.dto.ts`
+- [x] Crear `src/modules/search/dto/price.dto.ts`
+- [x] Definir estructura:
+  - [x] `id`: string
+  - [x] `price`: `{ amount: number, currency: string }`
+  - [x] `segments`: `SegmentDto[]`
+  - [x] `duration`: number (minutos)
+  - [x] `airlines`: string[]
+  - [x] `provider`: 'amadeus' | 'skyscanner' (preparar para futuro)
+- [x] Definir `SegmentDto`:
+  - [x] `departure`: `{ airport: string, time: string, terminal?: string }`
+  - [x] `arrival`: `{ airport: string, time: string, terminal?: string }`
+  - [x] `duration`: number (minutos)
+  - [x] `airline`: string
+  - [x] `flightNumber`: string
 
 ---
 
 ### 3.3 Interfaces de Proveedores
 
 #### Flight Provider Interface
-- [ ] Crear `src/modules/search/interfaces/flight-provider.interface.ts`
-- [ ] Definir interface `IFlightProvider`:
-  - [ ] `searchFlights(params: SearchParams): Promise<FlightDto[]>`
-- [ ] Esto permite agregar múltiples proveedores en el futuro
-- [ ] `AmadeusService` implementará esta interface
+- [x] Crear `src/modules/search/interfaces/flight-provider.interface.ts`
+- [x] Definir interface `IFlightProvider`:
+  - [x] `searchFlights(params: SearchFlightsRequestDto): Promise<FlightDto[]>`
+- [x] Esto permite agregar múltiples proveedores en el futuro
+- [x] `AmadeusService` implementa esta interface
+- [x] Configurar inyección con token `FLIGHT_PROVIDER_TOKEN`
 
 ---
 
 ### 3.4 Servicio de Búsqueda
 
 #### Search Service
-- [ ] Crear `src/modules/search/search.service.ts`
-- [ ] Inyectar dependencias:
-  - [ ] `AmadeusService` (o `IFlightProvider[]` para múltiples)
-  - [ ] `CacheService`
-  - [ ] `ResilienceService` (si no es global)
-  - [ ] `LoggerService`
-- [ ] Implementar método `searchFlights()`:
-  - [ ] Recibir `SearchFlightsRequestDto`
-  - [ ] Generar cache key: `search:flights:{origin}:{destination}:{date}:{passengers}`
-  - [ ] Verificar cache con `CacheService.wrap()`
-  - [ ] Si no está en cache:
-    - [ ] Llamar a `AmadeusService.searchFlights()`
-    - [ ] Guardar resultado en cache con TTL variable:
-      - [ ] Búsquedas futuras (>7 días): 24 horas
-      - [ ] Búsquedas próximas (1-7 días): 6 horas
-      - [ ] Búsquedas hoy: 1 hora
-  - [ ] Retornar `SearchFlightsResponseDto`
-- [ ] Implementar cálculo de TTL dinámico según fecha de vuelo
-- [ ] Implementar logging estructurado:
-  - [ ] Log de búsqueda iniciada
-  - [ ] Log de cache hit/miss
-  - [ ] Log de llamada a proveedor
-  - [ ] Log de resultados encontrados
+- [x] Crear `src/modules/search/search.service.ts`
+- [x] Inyectar dependencias:
+  - [x] `IFlightProvider` (usando token de inyección)
+  - [x] `CacheService`
+  - [x] `LoggerService`
+- [x] Implementar método `searchFlights()`:
+  - [x] Recibir `SearchFlightsRequestDto`
+  - [x] Generar cache key: `search:flights:{origin}:{destination}:{date}:{passengers}:{filters}`
+  - [x] Verificar cache con `CacheService.wrap()`
+  - [x] Si no está en cache:
+    - [x] Llamar a `IFlightProvider.searchFlights()`
+    - [x] Guardar resultado en cache con TTL variable:
+      - [x] Búsquedas futuras (>7 días): 24 horas
+      - [x] Búsquedas próximas (1-7 días): 6 horas
+      - [x] Búsquedas hoy: 1 hora
+  - [x] Retornar `SearchFlightsResponseDto`
+- [x] Implementar cálculo de TTL dinámico según fecha de vuelo
+- [x] Implementar logging estructurado:
+  - [x] Log de búsqueda iniciada
+  - [x] Log de cache hit/miss
+  - [x] Log de llamada a proveedor
+  - [x] Log de resultados encontrados
+- [x] Implementar método `buildCacheKey()` para generar keys consistentes
+- [x] Implementar método `calculateCacheTtl()` para TTL dinámico
+- [x] Mapear resultados de proveedor a DTOs normalizados usando mappers
 
 ---
 
 ### 3.5 Controller de Búsqueda
 
 #### Search Controller
-- [ ] Crear `src/modules/search/search.controller.ts`
-- [ ] Definir ruta base: `@Controller('search')` (se versionará después)
-- [ ] Implementar endpoint `GET /search/flights`:
-  - [ ] Recibir query parameters
-  - [ ] Validar con `SearchFlightsRequestDto` usando `@Query()` y `class-validator`
-  - [ ] Llamar a `SearchService.searchFlights()`
-  - [ ] Retornar `SearchFlightsResponseDto`
-  - [ ] Manejar errores con excepciones HTTP apropiadas
-- [ ] Agregar decoradores de documentación (Swagger, opcional):
-  - [ ] `@ApiOperation()`
-  - [ ] `@ApiResponse()`
-  - [ ] `@ApiQuery()`
-- [ ] Implementar logging de requests (ya cubierto por interceptor)
+- [x] Crear `src/modules/search/search.controller.ts`
+- [x] Definir ruta base: `@Controller('search')` (se versionará después)
+- [x] Implementar endpoint `GET /search/flights`:
+  - [x] Recibir query parameters
+  - [x] Validar con `SearchFlightsRequestDto` usando `@Query()` y `class-validator`
+  - [x] Llamar a `SearchService.searchFlights()`
+  - [x] Retornar `SearchFlightsResponseDto`
+  - [x] Manejar errores con excepciones HTTP apropiadas
+- [x] Configurar `ValidationPipe` globalmente en `main.ts`
+- [x] Implementar logging de requests (ya cubierto por interceptor)
+- [x] Soporte para arrays en query params (`includedAirlines`, `excludedAirlines`)
 
 ---
 
@@ -536,6 +548,12 @@
 - [ ] Agregar guard de autenticación o condición `if (NODE_ENV !== 'production')`
 - [ ] O eliminar completamente si no se necesita
 
+#### Configuración Global
+- [x] Configurar `ValidationPipe` globalmente en `main.ts`
+- [x] Configurar `GlobalExceptionFilter` globalmente
+- [x] Habilitar CORS globalmente
+- [x] Agregar handlers para `unhandledRejection` y `uncaughtException`
+
 #### Validación de Input
 - [ ] Verificar que todos los DTOs tengan validación
 - [ ] Verificar que se usen `ValidationPipe` globalmente
@@ -626,14 +644,24 @@
 
 ## 📊 Progreso
 
-**Última actualización**: 2024-12-19  
-**Tareas completadas**: 60 / ~60 (implementación core)  
+**Última actualización**: 2025-12-04  
+**Tareas completadas**: 80 / ~80 (implementación core)  
 **Porcentaje**: 100% de implementación core completada
 
 **Fases completadas:**
 - ✅ FASE 0: Preparación y Configuración Base
 - ✅ FASE 1: Infraestructura Base (Cache, Logging, Resilience) - COMPLETA
 - ✅ FASE 2: Integración con Amadeus - COMPLETA
+- ✅ FASE 3: Módulo de Búsqueda - COMPLETA
+
+**Funcionalidades adicionales implementadas:**
+- ✅ Eliminación de cache por patrón (`deleteByPattern`)
+- ✅ Endpoint `/debug/cache/del-search` para eliminar búsquedas específicas
+- ✅ Endpoint `/debug/cache/del-pattern` para eliminar múltiples keys
+- ✅ Soporte para arrays en query params (`includedAirlines`, `excludedAirlines`)
+- ✅ Validación global con `ValidationPipe` configurado en `main.ts`
+- ✅ CORS habilitado globalmente
+- ✅ Manejo robusto de errores con `GlobalExceptionFilter`
 
 ---
 

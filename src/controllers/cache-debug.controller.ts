@@ -106,4 +106,21 @@ export class CacheDebugController {
     // Retornamos confirmación con la clave construida
     return { ok: true, key, message: 'Key de búsqueda eliminada del cache' };
   }
+
+  // GET /debug/cache/del-pattern?pattern=search:flights:JFK:*
+  // Endpoint para eliminar múltiples keys que coincidan con un patrón
+  // Útil para eliminar todas las búsquedas de un origen, todas las búsquedas, etc.
+  @Get('del-pattern')
+  async delPattern(@Query('pattern') pattern: string) {
+    // Eliminamos todas las keys que coincidan con el patrón
+    const deletedCount = await this.cache.deleteByPattern(pattern);
+
+    // Retornamos confirmación con el número de keys eliminadas
+    return {
+      ok: true,
+      pattern,
+      keysDeleted: deletedCount,
+      message: `${deletedCount} keys eliminadas que coinciden con el patrón`,
+    };
+  }
 }

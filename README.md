@@ -34,26 +34,35 @@ Este servicio está diseñado para:
 ### 1.3 Estado Actual
 
 **Implementado:**
-- ✅ Sistema de caché Redis completo
-- ✅ Endpoints de debug para probar el caché
+- ✅ Sistema de caché Redis completo con métodos avanzados (`deleteByPattern`)
+- ✅ Endpoints de debug para probar el caché (`/debug/cache/*`)
 - ✅ Configuración de Docker Compose
 - ✅ Estructura base del proyecto
 - ✅ Sistema de logging completo con Winston (`infra/logging`)
+  - ✅ LoggerService con niveles (debug, info, warn, error)
+  - ✅ LoggingInterceptor para requests/responses
+  - ✅ GlobalExceptionFilter para manejo de errores
 - ✅ Módulo de resiliencia (`infra/resilience`) - Circuit breaker, retry, timeout
 - ✅ **Integración completa con Amadeus** (`modules/providers/amadeus`):
   - ✅ Autenticación OAuth2 con cache de tokens
   - ✅ Cliente HTTP con interceptores y manejo de errores
-  - ✅ DTOs de request y response
+  - ✅ DTOs de request y response completos
   - ✅ Mappers para normalización de datos
   - ✅ Servicio principal de búsqueda de vuelos
   - ✅ Módulo completo y exportable
-
-**En desarrollo:**
-- 🔄 Módulo de búsqueda de vuelos (`modules/search`) - Preparado para implementación
+- ✅ **Módulo de búsqueda de vuelos** (`modules/search`) - COMPLETO:
+  - ✅ Controller con endpoint `/search/flights`
+  - ✅ Service con lógica de negocio y cache
+  - ✅ DTOs normalizados (request y response)
+  - ✅ Mappers para transformación de datos
+  - ✅ Interfaz `IFlightProvider` para múltiples proveedores
+  - ✅ Validación completa con `class-validator` y `class-transformer`
+  - ✅ Soporte para arrays en query params (`includedAirlines`, `excludedAirlines`)
+  - ✅ Cache inteligente con TTL dinámico según fecha del vuelo
 
 **Preparado para implementación futura:**
-- 🔄 Rate limiting con `@nestjs/throttler`
-- 🔄 Health checks con `@nestjs/terminus`
+- 🔄 Rate limiting con `@nestjs/throttler` (dependencia instalada)
+- 🔄 Health checks con `@nestjs/terminus` (dependencia instalada)
 - 🔄 API versioning
 - 🔄 Documentación Swagger/OpenAPI
 
@@ -240,11 +249,27 @@ Contiene todo el código TypeScript de la aplicación. Esta es la carpeta que de
 **Propósito**: Contiene la lógica de negocio organizada por dominio.
 
 **Subcarpetas**:
-- `search/`: Lógica de búsqueda de vuelos (preparado para implementación futura)
+- `search/`: Módulo completo de búsqueda de vuelos
+  - `search.controller.ts`: Endpoint `/search/flights`
+  - `search.service.ts`: Lógica de negocio con cache inteligente
+  - `search.module.ts`: Configuración del módulo con inyección de dependencias
+  - `dto/`: DTOs normalizados (request, response, flight, segment, price)
+  - `mappers/`: Transformación de datos de proveedores a DTOs normalizados
+    - `flight.mapper.ts`: Mapea `NormalizedFlightDto[]` → `FlightDto[]`
+  - `interfaces/`: `IFlightProvider` para abstracción de proveedores
 - `providers/`: Integraciones con proveedores externos
-  - `amadeus/`: Integración con la API de Amadeus (preparado para implementación futura)
+  - `amadeus/`: Integración completa con la API de Amadeus
+    - `amadeus.service.ts`: Servicio principal que implementa `IFlightProvider`
+    - `amadeus-token.service.ts`: Gestión de tokens OAuth2 con cache
+    - `amadeus.client.ts`: Cliente HTTP con interceptores y resiliencia
+    - `amadeus.config.ts`: Configuración desde variables de entorno
+    - `amadeus.types.ts`: Tipos e interfaces específicas de Amadeus
+    - `amadeus.module.ts`: Módulo exportable
+    - `dto/`: DTOs específicos de Amadeus (request y response)
+    - `mappers/`: Transformación de respuestas de Amadeus a formato normalizado
+      - `amadeus-flight-offers.mappers.ts`: Mapea `AmadeusFlightOffersResponseDto` → `NormalizedFlightDto[]`
 
-**Decisión**: Organización por dominio facilita el mantenimiento y la escalabilidad.
+**Decisión**: Organización por dominio facilita el mantenimiento y la escalabilidad. Separación de mappers permite cambiar proveedores sin afectar la lógica de negocio.
 
 #### `src/controllers/` - Controladores HTTP
 
@@ -252,6 +277,16 @@ Contiene todo el código TypeScript de la aplicación. Esta es la carpeta que de
 
 **Contenido actual**:
 - `cache-debug.controller.ts`: Endpoints para probar y debuggear el caché
+  - `GET /debug/cache/set` - Guardar valor en cache
+  - `GET /debug/cache/get` - Obtener valor del cache
+  - `GET /debug/cache/wrap` - Probar patrón cache-aside
+  - `GET /debug/cache/stats` - Ver estadísticas (hits/misses)
+  - `GET /debug/cache/del` - Eliminar key específica
+  - `GET /debug/cache/del-search` - Eliminar búsqueda específica
+  - `GET /debug/cache/del-pattern` - Eliminar keys por patrón
+
+**Nota**: Los controladores de módulos están dentro de sus respectivos módulos:
+- `modules/search/search.controller.ts`: `GET /search/flights`
 
 **Decisión**: Separar controladores permite tener múltiples interfaces (REST, GraphQL, WebSocket) para la misma lógica.
 
@@ -1336,19 +1371,36 @@ pnpm run start:dev
 
 La aplicación estará disponible en `http://localhost:3000`
 
-### 8.2 Probar el Caché
+### 8.2 Endpoints Disponibles
 
-#### Guardar un valor:
+#### Búsqueda de Vuelos
+```bash
+# Búsqueda simple
+curl "http://localhost:3000/search/flights?origin=JFK&destination=LAX&departureDate=2026-06-25&adults=1"
+
+# Búsqueda con filtros avanzados
+curl "http://localhost:3000/search/flights?origin=JFK&destination=LAX&departureDate=2026-06-25&returnDate=2026-07-01&adults=2&children=1&travelClass=ECONOMY&maxResults=20&currency=USD&includedAirlines=AA&includedAirlines=DL"
+
+# Arrays en query params (dos formatos soportados):
+# Formato 1: múltiples parámetros
+?includedAirlines=AA&includedAirlines=DL
+# Formato 2: string separado por comas
+?includedAirlines=AA,DL
+```
+
+#### Debug del Caché
+
+**Guardar un valor:**
 ```bash
 curl "http://localhost:3000/debug/cache/set?key=test&value=hello"
 ```
 
-#### Obtener un valor:
+**Obtener un valor:**
 ```bash
 curl "http://localhost:3000/debug/cache/get?key=test"
 ```
 
-#### Probar cache-aside:
+**Probar cache-aside:**
 ```bash
 # Primera llamada: genera nuevo valor
 curl "http://localhost:3000/debug/cache/wrap?key=generated"
@@ -1357,9 +1409,31 @@ curl "http://localhost:3000/debug/cache/wrap?key=generated"
 curl "http://localhost:3000/debug/cache/wrap?key=generated"
 ```
 
-#### Ver estadísticas:
+**Ver estadísticas:**
 ```bash
 curl "http://localhost:3000/debug/cache/stats"
+```
+
+**Eliminar key específica:**
+```bash
+curl "http://localhost:3000/debug/cache/del?key=test"
+```
+
+**Eliminar búsqueda específica:**
+```bash
+curl "http://localhost:3000/debug/cache/del-search?origin=JFK&destination=LAX&departureDate=2026-06-25&adults=1"
+```
+
+**Eliminar keys por patrón:**
+```bash
+# Eliminar todas las búsquedas de vuelos
+curl "http://localhost:3000/debug/cache/del-pattern?pattern=search:flights:*"
+
+# Eliminar todas las búsquedas desde JFK
+curl "http://localhost:3000/debug/cache/del-pattern?pattern=search:flights:JFK:*"
+
+# Eliminar todo el cache (¡cuidado!)
+curl "http://localhost:3000/debug/cache/del-pattern?pattern=*"
 ```
 
 ### 8.3 Usar CacheService en tu Código
@@ -1393,6 +1467,12 @@ export class MyService {
       this.cache.composeKey('data', id)
     );
   }
+
+  async clearAllData() {
+    // Eliminar todas las keys que coincidan con un patrón
+    const deleted = await this.cache.deleteByPattern('data:*');
+    console.log(`Eliminadas ${deleted} keys`);
+  }
 }
 ```
 
@@ -1418,9 +1498,9 @@ cache.composeKey('user', userId, 'profile')
 
 ### 8.5 Sistema de Logging
 
-**Estado actual**: La configuración de Winston está implementada. El servicio, interceptor y filter están pendientes de implementación.
+**Estado actual**: ✅ Sistema completo implementado y funcionando.
 
-**Una vez implementado**, el sistema de logging proporcionará:
+El sistema de logging proporciona:
 
 1. **Logging estructurado**:
    - Formato JSON en producción (fácil parsing)
@@ -1438,17 +1518,19 @@ cache.composeKey('user', userId, 'profile')
      - `logs/error.log`: Solo errores
      - `logs/combined.log`: Todos los logs
 
-4. **Uso futuro** (cuando esté implementado):
+4. **Uso**:
 ```typescript
-import { Logger } from '@nestjs/common';
+import { LoggerService } from './infra/logging/logger.service';
 
 @Injectable()
 export class MyService {
-  private readonly logger = new Logger(MyService.name);
+  constructor(private readonly logger: LoggerService) {
+    this.logger.setContext(MyService.name);
+  }
 
   async doSomething() {
-    this.logger.log('Operación iniciada');
-    this.logger.debug('Detalles de la operación', { data: 'value' });
+    this.logger.info('Operación iniciada');
+    this.logger.debug('Detalles de la operación', undefined, { data: 'value' });
     this.logger.warn('Advertencia');
     this.logger.error('Error ocurrido', error.stack);
   }
@@ -1457,45 +1539,167 @@ export class MyService {
 
 **Nota**: Los archivos de log se crean automáticamente en la carpeta `logs/` en producción. Asegúrate de que esta carpeta tenga permisos de escritura.
 
+### 8.6 Características Avanzadas del Cache
+
+#### Eliminación por Patrón
+
+El método `deleteByPattern()` permite eliminar múltiples keys de forma eficiente usando `SCAN` (no bloquea Redis):
+
+```typescript
+// Eliminar todas las búsquedas de vuelos
+await cache.deleteByPattern('search:flights:*');
+
+// Eliminar todas las búsquedas desde un aeropuerto específico
+await cache.deleteByPattern('search:flights:JFK:*');
+
+// Eliminar todo el cache (¡cuidado!)
+await cache.deleteByPattern('*');
+```
+
+**Ventajas**:
+- Usa `SCAN` en lugar de `KEYS` (no bloquea Redis)
+- Procesa en lotes de 100 keys
+- Retorna el número de keys eliminadas
+- Fail-safe: no lanza excepciones si falla
+
+### 8.7 Búsqueda de Vuelos
+
+#### Parámetros Soportados
+
+El endpoint `/search/flights` soporta los siguientes parámetros:
+
+**Requeridos:**
+- `origin`: Código IATA del aeropuerto de origen (3 letras)
+- `destination`: Código IATA del aeropuerto de destino (3 letras)
+- `departureDate`: Fecha de salida (formato: YYYY-MM-DD)
+- `adults`: Número de adultos (1-9)
+
+**Opcionales:**
+- `returnDate`: Fecha de retorno (formato: YYYY-MM-DD)
+- `children`: Número de niños (0-9)
+- `infants`: Número de infantes (0-9)
+- `maxResults`: Número máximo de resultados (1-250)
+- `travelClass`: Clase de viaje (ECONOMY, PREMIUM_ECONOMY, BUSINESS, FIRST)
+- `currency`: Código de moneda ISO 4217 (3 letras, ej: USD, EUR)
+- `includedAirlines`: Array de códigos IATA de aerolíneas a incluir (2 letras cada uno)
+- `excludedAirlines`: Array de códigos IATA de aerolíneas a excluir (2 letras cada uno)
+
+#### Arrays en Query Params
+
+Los parámetros `includedAirlines` y `excludedAirlines` soportan dos formatos:
+
+**Formato 1: Múltiples parámetros**
+```
+?includedAirlines=AA&includedAirlines=DL
+```
+
+**Formato 2: String separado por comas**
+```
+?includedAirlines=AA,DL
+```
+
+Ambos formatos se transforman automáticamente a arrays y se normalizan (trim, uppercase).
+
 ---
 
-## 9. Próximos Pasos
+## 9. Características Implementadas
+
+### 9.1 Validación y Transformación
+
+- ✅ **ValidationPipe global**: Configurado en `main.ts` con transformación automática
+- ✅ **Validación de DTOs**: Todos los DTOs usan `class-validator` para validación
+- ✅ **Transformación automática**: `class-transformer` convierte tipos automáticamente
+- ✅ **Arrays en query params**: Soporte completo para `includedAirlines` y `excludedAirlines`
+  - Múltiples parámetros: `?includedAirlines=AA&includedAirlines=DL`
+  - String separado por comas: `?includedAirlines=AA,DL`
+
+### 9.2 Manejo de Errores
+
+- ✅ **GlobalExceptionFilter**: Captura todas las excepciones no manejadas
+- ✅ **Formato estructurado**: Respuestas de error consistentes
+- ✅ **Logging robusto**: Errores logueados con contexto completo
+- ✅ **Handlers asíncronos**: Manejo de `unhandledRejection` y `uncaughtException`
+- ✅ **AmadeusApiError**: Clase personalizada para errores de Amadeus con estructura detallada
+
+### 9.3 Cache Avanzado
+
+- ✅ **TTL dinámico**: TTL variable según fecha del vuelo
+- ✅ **Eliminación por patrón**: `deleteByPattern()` usando SCAN
+- ✅ **Métricas**: Hits/misses trackeados
+- ✅ **Cache-aside**: Patrón implementado en `wrap()`
+- ✅ **Fail-safe**: Cache puede fallar sin afectar la aplicación
+
+### 9.4 Resiliencia
+
+- ✅ **Circuit Breaker**: Protección contra fallos en cascada
+- ✅ **Retry con backoff**: Reintentos automáticos con espera exponencial
+- ✅ **Timeout**: Límites de tiempo por operación
+- ✅ **Políticas combinadas**: Circuit Breaker + Retry + Timeout
+
+### 9.5 Logging
+
+- ✅ **Logging estructurado**: Formato JSON en producción, legible en desarrollo
+- ✅ **Niveles de log**: debug, info, warn, error
+- ✅ **Contexto**: Cada servicio tiene su contexto
+- ✅ **Interceptor**: Logging automático de requests/responses
+- ✅ **Filtro de excepciones**: Logging de errores con stack traces
+
+---
+
+## 10. Próximos Pasos
 
 ### 9.1 Estado de Implementación por Módulo
 
 #### ✅ Completamente Implementado
 - **`src/infra/cache/`**: Sistema de caché Redis completo y funcional
+  - ✅ Métodos básicos (get, set, delete)
+  - ✅ Patrón cache-aside (wrap)
+  - ✅ Eliminación por patrón (deleteByPattern)
+  - ✅ Métricas (hits/misses)
 - **`src/infra/logging/`**: Sistema de logging completo con Winston
-- **`src/infra/resilience/`**: Módulo de resiliencia completo (Circuit Breaker, Retry, Timeout)
-- **`src/modules/providers/amadeus/`**: Integración completa con API de Amadeus:
+  - ✅ LoggerService con niveles y contexto
+  - ✅ LoggingInterceptor para requests/responses
+  - ✅ GlobalExceptionFilter para errores
+- **`src/infra/resilience/`**: Módulo de resiliencia completo
+  - ✅ Circuit Breaker con Cockatiel
+  - ✅ Retry con Exponential Backoff
+  - ✅ Timeout policies
+  - ✅ Policy Composer para combinar políticas
+- **`src/modules/providers/amadeus/`**: Integración completa con API de Amadeus
   - ✅ Autenticación OAuth2 con cache de tokens
   - ✅ Cliente HTTP con interceptores y manejo de errores
   - ✅ DTOs de request y response completos
   - ✅ Mappers para normalización de datos
   - ✅ Servicio principal de búsqueda
   - ✅ Módulo completo y exportable
+- **`src/modules/search/`**: Módulo de búsqueda de vuelos COMPLETO
+  - ✅ Controller con endpoint `/search/flights`
+  - ✅ Service con lógica de negocio y cache inteligente
+  - ✅ DTOs normalizados (request, response, flight, segment, price)
+  - ✅ Mappers para transformación de datos
+  - ✅ Interfaz `IFlightProvider` para abstracción
+  - ✅ Validación completa con `class-validator`
+  - ✅ Soporte para arrays en query params
+  - ✅ Cache con TTL dinámico según fecha del vuelo
 
-#### 🔄 Preparado para Implementación
-- **`src/modules/search/`**: Módulo de búsqueda de vuelos (próximo paso)
-
-### 9.2 Mejoras Futuras Sugeridas
+### 10.2 Mejoras Futuras Sugeridas
 
 - [x] Implementar logging estructurado completo
 - [x] Implementar patrones de resiliencia con Cockatiel
 - [x] Integración completa con Amadeus
-- [ ] Implementar módulo de búsqueda (`modules/search`)
+- [x] Implementar módulo de búsqueda (`modules/search`)
+- [x] Validación de DTOs con `class-validator` y `class-transformer`
+- [x] Soporte para arrays en query params
 - [ ] Agregar autenticación/autorización
-- [ ] Implementar rate limiting con `@nestjs/throttler`
-- [x] Validación de DTOs con `class-validator` (implementado en Amadeus)
-- [ ] Agregar health checks con `@nestjs/terminus`
+- [ ] Implementar rate limiting con `@nestjs/throttler` (dependencia instalada)
+- [ ] Agregar health checks con `@nestjs/terminus` (dependencia instalada)
 - [ ] Documentación con Swagger/OpenAPI
-- [ ] Tests unitarios para servicios de Amadeus
-- [ ] Tests de integración para flujo completo
+- [ ] API versioning (`/api/v1`)
 - [ ] Deshabilitar endpoints de debug en producción
 
 ---
 
-## 10. Recursos Adicionales
+## 11. Recursos Adicionales
 
 - [Documentación oficial de NestJS](https://docs.nestjs.com)
 - [Documentación de ioredis](https://github.com/redis/ioredis)

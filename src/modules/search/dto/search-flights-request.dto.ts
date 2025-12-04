@@ -14,7 +14,7 @@ import {
 } from 'class-validator';
 // Importamos decoradores de transformación de class-transformer
 // Estos decoradores transforman los tipos de datos (ej: string a number) desde query params
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 // DTO para el request de búsqueda de vuelos desde la API pública
 // Este DTO define y valida los parámetros que recibe el endpoint de búsqueda
@@ -98,6 +98,38 @@ export class SearchFlightsRequestDto {
   // Códigos de aerolíneas a incluir (opcional, array de códigos IATA de 2 letras)
   // Ejemplo: ["AA", "DL"] para solo American Airlines y Delta
   // Si se proporciona, solo se retornan vuelos de estas aerolíneas
+  // En query params se puede pasar como: ?includedAirlines=AA&includedAirlines=DL o ?includedAirlines=AA,DL
+  @Transform(({ value, obj }) => {
+    // Obtenemos el valor crudo del objeto request (antes de transformaciones)
+    const rawValue = obj.includedAirlines;
+    
+    // Si el valor es undefined, null o string vacío, retornamos undefined
+    if (!rawValue || (typeof rawValue === 'string' && rawValue.trim() === '')) {
+      return undefined;
+    }
+    
+    // Si es string, lo convertimos a array (ej: "AA,DL" -> ["AA", "DL"])
+    if (typeof rawValue === 'string') {
+      // Dividimos por comas, limpiamos espacios y convertimos a mayúsculas
+      const result = rawValue
+        .split(',')
+        .map((item: string) => item.trim().toUpperCase())
+        .filter((item: string) => item.length > 0); // Filtramos strings vacíos
+      // Si el array resultante está vacío, retornamos undefined
+      return result.length > 0 ? result : undefined;
+    }
+    
+    // Si ya es array (Express parseó ?includedAirlines=AA&includedAirlines=DL), lo normalizamos
+    if (Array.isArray(rawValue)) {
+      const result = rawValue
+        .map((item: string) => String(item).trim().toUpperCase())
+        .filter((item: string) => item.length > 0); // Filtramos strings vacíos
+      // Si el array resultante está vacío, retornamos undefined
+      return result.length > 0 ? result : undefined;
+    }
+    
+    return undefined;
+  })
   @IsOptional()
   @IsArray({ message: 'includedAirlines debe ser un array' })
   @IsString({ each: true, message: 'Cada código de aerolínea debe ser un string' })
@@ -109,6 +141,38 @@ export class SearchFlightsRequestDto {
 
   // Códigos de aerolíneas a excluir (opcional, array de códigos IATA de 2 letras)
   // Si se proporciona, se excluyen vuelos de estas aerolíneas
+  // En query params se puede pasar como: ?excludedAirlines=AA&excludedAirlines=DL o ?excludedAirlines=AA,DL
+  @Transform(({ value, obj }) => {
+    // Obtenemos el valor crudo del objeto request (antes de transformaciones)
+    const rawValue = obj.excludedAirlines;
+    
+    // Si el valor es undefined, null o string vacío, retornamos undefined
+    if (!rawValue || (typeof rawValue === 'string' && rawValue.trim() === '')) {
+      return undefined;
+    }
+    
+    // Si es string, lo convertimos a array (ej: "AA,DL" -> ["AA", "DL"])
+    if (typeof rawValue === 'string') {
+      // Dividimos por comas, limpiamos espacios y convertimos a mayúsculas
+      const result = rawValue
+        .split(',')
+        .map((item: string) => item.trim().toUpperCase())
+        .filter((item: string) => item.length > 0); // Filtramos strings vacíos
+      // Si el array resultante está vacío, retornamos undefined
+      return result.length > 0 ? result : undefined;
+    }
+    
+    // Si ya es array (Express parseó ?excludedAirlines=AA&excludedAirlines=DL), lo normalizamos
+    if (Array.isArray(rawValue)) {
+      const result = rawValue
+        .map((item: string) => String(item).trim().toUpperCase())
+        .filter((item: string) => item.length > 0); // Filtramos strings vacíos
+      // Si el array resultante está vacío, retornamos undefined
+      return result.length > 0 ? result : undefined;
+    }
+    
+    return undefined;
+  })
   @IsOptional()
   @IsArray({ message: 'excludedAirlines debe ser un array' })
   @IsString({ each: true, message: 'Cada código de aerolínea debe ser un string' })

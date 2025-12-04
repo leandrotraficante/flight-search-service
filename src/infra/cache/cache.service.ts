@@ -105,6 +105,79 @@ export class CacheService {
     this.logger.debug(`DEL → ${key}`); // Logging para confirmar la eliminación
   }
 
+  // Eliminar múltiples keys que coincidan con un patrón
+  // Útil para invalidar cache de búsquedas relacionadas (ej: todas las búsquedas de un origen específico)
+  // Parámetro: pattern - Patrón de búsqueda (ej: "search:flights:JFK:*" o "search:flights:*")
+  // Retorna: Promise<number> - Número de keys eliminadas
+  // Nota: Usa SCAN en lugar de KEYS para evitar bloquear Redis con muchas keys
+  async deleteByPattern(pattern: string): Promise<number> {
+    try {
+      // ioredis tiene acceso a métodos de Redis directamente
+      // Necesitamos hacer un cast para acceder a métodos que no están en la interfaz CacheClient
+      const redisClient = this.client as any;
+
+      // Usamos SCAN para buscar keys que coincidan con el patrón
+      // SCAN es más seguro que KEYS porque no bloquea Redis
+      const stream = redisClient.scanStream({
+        match: pattern, // Patrón de búsqueda (ej: "search:flights:JFK:*")
+        count: 100, // Procesa 100 keys por iteración
+      });
+
+      const keysToDelete: string[] = [];
+
+      // Esperamos a que termine el stream y recopilamos todas las keys
+      return new Promise<number>((resolve, reject) => {
+        // Recopilamos todas las keys que coinciden con el patrón
+        stream.on('data', (keys: string[]) => {
+          keysToDelete.push(...keys);
+        });
+
+        // Cuando terminamos de escanear, eliminamos todas las keys encontradas
+        stream.on('end', async () => {
+          if (keysToDelete.length > 0) {
+            let deletedCount = 0;
+            // Eliminamos todas las keys de una vez usando DEL con múltiples keys
+            // Si hay muchas keys, las eliminamos en lotes para evitar sobrecargar Redis
+            const batchSize = 100;
+            for (let i = 0; i < keysToDelete.length; i += batchSize) {
+              const batch = keysToDelete.slice(i, i + batchSize);
+              const deleted = await redisClient.del(...batch);
+              deletedCount += deleted;
+            }
+
+            this.logger.info(`DEL PATTERN → ${pattern} (${deletedCount} keys eliminadas)`, undefined, {
+              pattern,
+              keysDeleted: deletedCount,
+            });
+            resolve(deletedCount);
+          } else {
+            this.logger.debug(`DEL PATTERN → ${pattern} (0 keys encontradas)`, undefined, { pattern });
+            resolve(0);
+          }
+        });
+
+        stream.on('error', (error: Error) => {
+          this.logger.error(
+            `Error al eliminar keys por patrón: ${pattern}`,
+            error.stack,
+            undefined,
+            { pattern },
+          );
+          reject(error);
+        });
+      });
+    } catch (err) {
+      // Si hay error, lo logueamos pero no lanzamos excepción (fail-safe)
+      this.logger.error(
+        `Error al eliminar keys por patrón: ${pattern}`,
+        err instanceof Error ? err.stack : undefined,
+        undefined,
+        { pattern, err },
+      );
+      return 0;
+    }
+  }
+
   // Cache-aside: si existe, devuelve; si no, ejecuta la función.
   // Patrón común: primero busca en cache, si no está, ejecuta la función y guarda el resultado
   async wrap<T>(key: string, ttlSeconds: number, fn: () => Promise<T>): Promise<T> {
