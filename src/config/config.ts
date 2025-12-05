@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common'; // Decorador que marca la clase como inyectable en el sistema de DI de NestJS, permite que otras clases la usen mediante constructor injection
-import { ConfigService } from '@nestjs/config'; // Servicio de NestJS que lee variables de entorno del archivo .env, proporciona métodos get() para acceder a las variables
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config'; // Servicio de NestJS que lee variables de entorno del archivo .env,
+// proporciona métodos get() para acceder a las variables
 
 // Interfaces para tipado de las configuraciones
 // Las interfaces definen la estructura de datos esperada, proporcionando autocompletado y validación de tipos en TypeScript
@@ -41,11 +42,10 @@ export interface ResilienceConfig {
   circuitBreaker: CircuitBreakerConfig; // Configuración del circuit breaker, agrupa todas las opciones relacionadas con este patrón
 }
 
-/**
- * Servicio de configuración centralizado
- * Proporciona acceso tipado a todas las variables de entorno
- * Encapsula la lógica de lectura de variables de entorno y proporciona valores por defecto
- */
+// Servicio de configuración centralizado
+//Proporciona acceso tipado a todas las variables de entorno
+//Encapsula la lógica de lectura de variables de entorno y proporciona valores por defecto
+
 @Injectable() // Marca la clase como un servicio inyectable, permite que NestJS la registre en el contenedor de dependencias
 export class AppConfigService {
   // Clase que centraliza el acceso a todas las configuraciones de la aplicación
