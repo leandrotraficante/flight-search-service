@@ -36,7 +36,8 @@ export class CacheService {
   }
 
   // Obtener valor desde Redis --> Método genérico que intenta parsear JSON automáticamente, pero fallback a string si falla
-  async get<T = any>(key: string): Promise<T | null> {
+  // T = unknown por defecto para mayor seguridad de tipos (requiere type assertion explícito si se espera un tipo específico)
+  async get<T = unknown>(key: string): Promise<T | null> {
     // try-catch externo: captura errores de conexión o problemas con Redis
     try {
       // Obtenemos el valor crudo desde Redis (siempre es string o null)
@@ -56,7 +57,7 @@ export class CacheService {
       // Incrementamos el contador de hits para métricas
       this.hitCount++;
       // Logging para saber que encontramos el valor en cache
-      this.logger.info(`HIT → ${key}`);
+      this.logger.debug(`HIT → ${key}`);
 
       // try-catch interno: intenta parsear como JSON, pero si falla devuelve el string crudo
       try {
@@ -72,19 +73,36 @@ export class CacheService {
     } catch (err) {
       // Si hay error de conexión o cualquier otro problema con Redis
       // Loggeamos el error para debugging pero no lanzamos excepción
-      this.logger.error(`Error al obtener key ${key}`, undefined, undefined, { err }); // Retornamos null en lugar de lanzar error: el cache es "fail-safe"
-      // La aplicación puede continuar funcionando aunque el cache falle
+      this.logger.error(
+        `Error al obtener key ${key}`,
+        err instanceof Error ? err.stack : undefined,
+        undefined,
+        {
+          error: err instanceof Error ? err.message : String(err),
+          errorType: err instanceof Error ? err.constructor.name : typeof err,
+        },
+      ); // La aplicación puede continuar funcionando aunque el cache falle
       return null;
     }
   }
 
   // Guardar valor con TTL (segundos) --> Convierte cualquier valor a JSON y lo guarda en Redis con expiración automática
-  async set(key: string, value: any, ttlSeconds: number): Promise<void> {
+  // T = unknown por defecto para mayor seguridad de tipos (requiere type assertion explícito si se espera un tipo específico)
+  async set<T = unknown>(key: string, value: T, ttlSeconds: number): Promise<void> {
     // try-catch para manejar errores de conexión o escritura
     try {
+      if (value === undefined) {
+        throw new Error('Cannot cache undefined value');
+      }
+
       // JSON.stringify convierte cualquier objeto/array/valor a string JSON
       // Esto permite guardar estructuras complejas en Redis (que solo acepta strings)
       const payload = JSON.stringify(value);
+
+      // Si payload es undefined, significa que el valor no es serializable
+      if (payload === undefined) {
+        throw new Error('Value is not JSON serializable');
+      }
 
       // Guardamos en Redis con el comando SET
       // 'EX' indica que el siguiente parámetro es el TTL en segundos
@@ -95,14 +113,24 @@ export class CacheService {
       this.logger.debug(`SET → ${key} (TTL ${ttlSeconds}s)`);
     } catch (err) {
       // Si falla la escritura, loggeamos pero no lanzamos excepción, Esto permite que la app continúe aunque el cache falle
-      this.logger.error(`Error al setear key ${key}`, undefined, undefined, { err });
+      this.logger.error(
+        `Error al setear key ${key}`,
+        err instanceof Error ? err.stack : undefined,
+        undefined,
+        { err: err instanceof Error ? err.message : String(err) },
+      );
     }
   }
 
   // Eliminar manualmente keys --> Útil para invalidar cache cuando los datos cambian en la fuente original
   async delete(key: string): Promise<void> {
-    await this.client.del(key); // del() elimina la key de Redis, retorna el número de keys eliminadas
-    this.logger.debug(`DEL → ${key}`); // Logging para confirmar la eliminación
+    try {
+      await this.client.del(key); // del() elimina la key de Redis, retorna el número de keys eliminadas
+      this.logger.debug(`DEL → ${key}`); // Logging para confirmar la eliminación
+    } catch (err) {
+      this.logger.error(`Error al eliminar key ${key}`, undefined, undefined, { err });
+      throw err; // Re-lanzamos el error para que el caller pueda manejarlo
+    }
   }
 
   // Eliminar múltiples keys que coincidan con un patrón
@@ -114,7 +142,7 @@ export class CacheService {
     try {
       // ioredis tiene acceso a métodos de Redis directamente
       // Necesitamos hacer un cast para acceder a métodos que no están en la interfaz CacheClient
-      const redisClient = this.client as any;
+      const redisClient = this.client;
 
       // Usamos SCAN para buscar keys que coincidan con el patrón
       // SCAN es más seguro que KEYS porque no bloquea Redis
@@ -135,23 +163,43 @@ export class CacheService {
         // Cuando terminamos de escanear, eliminamos todas las keys encontradas
         stream.on('end', async () => {
           if (keysToDelete.length > 0) {
+            // Límite máximo de keys a eliminar para evitar sobrecargar Redis
+            // Si hay demasiadas keys, limitamos y logueamos una advertencia
+            const MAX_KEYS_TO_DELETE = 10000;
+            let keysToProcess = keysToDelete;
+
+            if (keysToDelete.length > MAX_KEYS_TO_DELETE) {
+              this.logger.warn(
+                `Pattern matches ${keysToDelete.length} keys, limiting to ${MAX_KEYS_TO_DELETE}`,
+                undefined,
+                { pattern, totalKeys: keysToDelete.length, maxKeys: MAX_KEYS_TO_DELETE },
+              );
+              keysToProcess = keysToDelete.slice(0, MAX_KEYS_TO_DELETE);
+            }
+
             let deletedCount = 0;
             // Eliminamos todas las keys de una vez usando DEL con múltiples keys
             // Si hay muchas keys, las eliminamos en lotes para evitar sobrecargar Redis
             const batchSize = 100;
-            for (let i = 0; i < keysToDelete.length; i += batchSize) {
-              const batch = keysToDelete.slice(i, i + batchSize);
+            for (let i = 0; i < keysToProcess.length; i += batchSize) {
+              const batch = keysToProcess.slice(i, i + batchSize);
               const deleted = await redisClient.del(...batch);
               deletedCount += deleted;
             }
 
-            this.logger.info(`DEL PATTERN → ${pattern} (${deletedCount} keys eliminadas)`, undefined, {
-              pattern,
-              keysDeleted: deletedCount,
-            });
+            this.logger.info(
+              `DEL PATTERN → ${pattern} (${deletedCount} keys eliminadas)`,
+              undefined,
+              {
+                pattern,
+                keysDeleted: deletedCount,
+              },
+            );
             resolve(deletedCount);
           } else {
-            this.logger.debug(`DEL PATTERN → ${pattern} (0 keys encontradas)`, undefined, { pattern });
+            this.logger.debug(`DEL PATTERN → ${pattern} (0 keys encontradas)`, undefined, {
+              pattern,
+            });
             resolve(0);
           }
         });

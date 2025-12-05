@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException } from '@nestjs/common';
 // Importamos la interfaz del proveedor en lugar de la implementación específica
 // Esto desacopla SearchService de AmadeusService, permitiendo agregar más proveedores fácilmente
 // Usamos 'import type' porque solo necesitamos el tipo para la inyección de dependencias
@@ -49,7 +49,7 @@ export class SearchService {
       // Vuelos futuros (>7 días): 24 horas
       // Vuelos próximos (1-7 días): 6 horas
       // Vuelos hoy: 1 hora
-      const ttlSeconds = this.calculateCacheTtl(params.departureDate);
+      const ttlSeconds = this.calculateCacheTtl(params);
 
       // Usamos CacheService.wrap() para implementar el patrón cache-aside
       // Si existe en cache, retorna inmediatamente
@@ -151,8 +151,8 @@ export class SearchService {
       params.maxResults?.toString() || 'default',
       params.currency || 'default',
       // Incluimos aerolíneas si están especificadas (ordenadas para consistencia)
-      params.includedAirlines ? params.includedAirlines.sort().join(',') : 'all',
-      params.excludedAirlines ? params.excludedAirlines.sort().join(',') : 'none',
+      params.includedAirlines ? [...params.includedAirlines].sort().join(',') : 'all',
+      params.excludedAirlines ? [...params.excludedAirlines].sort().join(',') : 'none',
     ];
 
     return this.cache.composeKey(...keyParts);
@@ -162,20 +162,59 @@ export class SearchService {
   // Vuelos futuros (>7 días): 24 horas (datos menos dinámicos)
   // Vuelos próximos (1-7 días): 6 horas (datos más dinámicos)
   // Vuelos hoy: 1 hora (datos muy dinámicos)
-  // Parámetro: departureDate - Fecha de salida en formato YYYY-MM-DD
+  // Si hay returnDate, usa la fecha más cercana (departureDate o returnDate) para calcular el TTL
+  // Parámetro: params - Parámetros de búsqueda que incluyen departureDate y opcionalmente returnDate
   // Retorna: number - TTL en segundos
-  private calculateCacheTtl(departureDate: string): number {
+  private calculateCacheTtl(params: SearchFlightsRequestDto): number {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Normalizamos a medianoche para comparar solo fechas
 
-    const departure = new Date(departureDate);
+    // Validamos y parseamos departureDate
+    const departure = new Date(params.departureDate);
+    if (isNaN(departure.getTime())) {
+      throw new BadRequestException('departureDate debe ser una fecha válida');
+    }
     departure.setHours(0, 0, 0, 0);
 
-    // Calculamos la diferencia en días
-    const diffTime = departure.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    // Validamos que departureDate no sea una fecha pasada
+    const diffTimeDeparture = departure.getTime() - today.getTime();
+    const diffDaysDeparture = Math.ceil(diffTimeDeparture / (1000 * 60 * 60 * 24));
+    if (diffDaysDeparture < 0) {
+      throw new BadRequestException('departureDate no puede ser una fecha pasada');
+    }
 
-    // Aplicamos TTL según los días hasta el vuelo
+    // Si hay returnDate, validamos y usamos la fecha más cercana
+    let dateToUse = departure;
+    let diffDays = diffDaysDeparture;
+
+    if (params.returnDate) {
+      const returnDate = new Date(params.returnDate);
+      if (isNaN(returnDate.getTime())) {
+        throw new BadRequestException('returnDate debe ser una fecha válida');
+      }
+      returnDate.setHours(0, 0, 0, 0);
+
+      // Validamos que returnDate no sea una fecha pasada
+      const diffTimeReturn = returnDate.getTime() - today.getTime();
+      const diffDaysReturn = Math.ceil(diffTimeReturn / (1000 * 60 * 60 * 24));
+      if (diffDaysReturn < 0) {
+        throw new BadRequestException('returnDate no puede ser una fecha pasada');
+      }
+
+      // Validamos que returnDate sea posterior a departureDate
+      if (returnDate.getTime() < departure.getTime()) {
+        throw new BadRequestException('returnDate debe ser posterior a departureDate');
+      }
+
+      // Usamos la fecha más cercana (menor diferencia con today) para calcular el TTL
+      // Esto asegura que el TTL refleje la urgencia del vuelo más próximo
+      if (diffDaysReturn < diffDaysDeparture) {
+        dateToUse = returnDate;
+        diffDays = diffDaysReturn;
+      }
+    }
+
+    // Aplicamos TTL según los días hasta el vuelo (usando la fecha más cercana)
     if (diffDays > 7) {
       // Vuelos futuros: 24 horas (86400 segundos)
       return 86400;

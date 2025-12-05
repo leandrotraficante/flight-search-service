@@ -111,6 +111,108 @@ export class AmadeusService implements IFlightProvider {
         meta: response.meta || null,
       });
 
+      // Validamos la estructura de cada vuelo antes de mapear
+      // Esto previene errores en el mapper si algún vuelo tiene estructura incorrecta
+      for (const offer of response.data) {
+        // Validar que el vuelo tenga ID
+        if (!offer.id) {
+          this.logger.error('Vuelo sin ID en respuesta de Amadeus', undefined, undefined, {
+            offer,
+          });
+          throw new AmadeusApiError(
+            {
+              errors: [
+                {
+                  code: 0,
+                  title: 'Invalid Flight Offer',
+                  detail: 'Vuelo sin ID en respuesta de Amadeus',
+                  status: 500,
+                },
+              ],
+            },
+            500,
+          );
+        }
+
+        // Validar que el vuelo tenga precio válido
+        if (!offer.price || !offer.price.total || !offer.price.currency) {
+          this.logger.error(`Vuelo ${offer.id} sin precio válido`, undefined, undefined, {
+            offerId: offer.id,
+            price: offer.price,
+          });
+          throw new AmadeusApiError(
+            {
+              errors: [
+                {
+                  code: 0,
+                  title: 'Invalid Flight Offer',
+                  detail: `Vuelo ${offer.id} sin precio válido`,
+                  status: 500,
+                },
+              ],
+            },
+            500,
+          );
+        }
+
+        // Validar que el vuelo tenga itinerarios
+        if (
+          !offer.itineraries ||
+          !Array.isArray(offer.itineraries) ||
+          offer.itineraries.length === 0
+        ) {
+          this.logger.error(`Vuelo ${offer.id} sin itinerarios`, undefined, undefined, {
+            offerId: offer.id,
+            itineraries: offer.itineraries,
+          });
+          throw new AmadeusApiError(
+            {
+              errors: [
+                {
+                  code: 0,
+                  title: 'Invalid Flight Offer',
+                  detail: `Vuelo ${offer.id} sin itinerarios`,
+                  status: 500,
+                },
+              ],
+            },
+            500,
+          );
+        }
+
+        // Validar que cada itinerario tenga segmentos
+        for (const itinerary of offer.itineraries) {
+          if (
+            !itinerary.segments ||
+            !Array.isArray(itinerary.segments) ||
+            itinerary.segments.length === 0
+          ) {
+            this.logger.error(
+              `Vuelo ${offer.id} tiene itinerario sin segmentos`,
+              undefined,
+              undefined,
+              {
+                offerId: offer.id,
+                itinerary,
+              },
+            );
+            throw new AmadeusApiError(
+              {
+                errors: [
+                  {
+                    code: 0,
+                    title: 'Invalid Flight Offer',
+                    detail: `Vuelo ${offer.id} tiene itinerario sin segmentos`,
+                    status: 500,
+                  },
+                ],
+              },
+              500,
+            );
+          }
+        }
+      }
+
       // Normalizamos la respuesta usando el mapper
       // El mapper transforma la estructura compleja de Amadeus a una estructura simple y normalizada
       // Esto permite que el resto de la aplicación no dependa de la estructura específica de Amadeus
@@ -237,8 +339,17 @@ export class AmadeusService implements IFlightProvider {
       queryParams.currencyCode = params.currencyCode;
     }
 
-    // Retornamos el objeto de query params
-    return queryParams;
+    // Filtramos los valores undefined para evitar que Axios los serialice como "undefined" en la URL
+    // Axios puede convertir undefined a string "undefined" en la query string, lo cual es incorrecto
+    const filteredParams: Record<string, string | number | string[]> = {};
+    for (const [key, value] of Object.entries(queryParams)) {
+      if (value !== undefined) {
+        filteredParams[key] = value;
+      }
+    }
+
+    // Retornamos el objeto de query params sin valores undefined
+    return filteredParams;
   }
 
   // Implementación de IFlightProvider.searchFlights()

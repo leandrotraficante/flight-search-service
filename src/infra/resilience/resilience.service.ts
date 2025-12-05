@@ -26,14 +26,40 @@ export class ResilienceService {
   }
 
   // Pool simple de políticas de Cockatiel por llave para reusar y no crear en cada llamada
+  // Límite máximo para prevenir memory leaks
   private policies = new Map<string, ComposedPolicy>();
+  private readonly MAX_POLICIES = 100;
 
   // Crea / obtiene policy compuesta de Cockatiel (a través de composePolicy)
+  // Si hay options, no cacheamos la política (creamos una nueva cada vez)
+  // Esto permite que diferentes llamadas con diferentes options usen políticas diferentes
   private getPolicy(policyKey: string, options?: ResilienceOptions): ComposedPolicy {
+    // Si hay options, no cachear (crear nueva política cada vez)
+    // Esto evita que políticas con diferentes options se reutilicen incorrectamente
+    if (options) {
+      return composePolicy(options);
+    }
+
+    // Solo cachear si no hay options
+    // Si alcanzamos el límite y la key no existe, eliminar la más antigua (FIFO)
+    if (this.policies.size >= this.MAX_POLICIES && !this.policies.has(policyKey)) {
+      const firstKey = this.policies.keys().next().value;
+      // Verificamos que firstKey no sea undefined (aunque no debería serlo si size >= MAX_POLICIES)
+      if (firstKey !== undefined) {
+        this.policies.delete(firstKey);
+        this.logger.debug(`Policy cache limit reached, removed: ${firstKey}`, undefined, {
+          removedKey: firstKey,
+          currentSize: this.policies.size,
+          maxSize: this.MAX_POLICIES,
+        });
+      }
+    }
+
     if (!this.policies.has(policyKey)) {
-      const policy = composePolicy(options);
+      const policy = composePolicy();
       this.policies.set(policyKey, policy);
     }
+
     const policy = this.policies.get(policyKey);
     if (!policy) {
       throw new Error(`Failed to create policy for key: ${policyKey}`);
@@ -47,7 +73,7 @@ export class ResilienceService {
    * - fn: función a ejecutar (sin parámetros)
    * - options: overrides por invocación
    */
-  async execute<T = any>(
+  async execute<T = unknown>(
     policyKey: string,
     fn: ResilientFunction<T>,
     options?: ResilienceOptions,
@@ -93,7 +119,7 @@ export class ResilienceService {
   /**
    * Ejecuta con fallback. Si la ejecución falla, ejecuta fallbackFn
    */
-  async executeOrFallback<T = any>(
+  async executeOrFallback<T = unknown>(
     policyKey: string,
     fn: ResilientFunction<T>,
     fallbackFn: () => Promise<T>,

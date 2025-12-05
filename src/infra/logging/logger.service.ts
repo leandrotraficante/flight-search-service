@@ -53,27 +53,27 @@ export class LoggerService implements NestLoggerService {
   }
 
   // Método de debug — nivel más bajo. Se usa típicamente para información detallada que solo se ve en desarrollo.
-  debug(message: unknown, context?: string, meta?: Record<string, any>) {
+  debug(message: unknown, context?: string, meta?: Record<string, unknown>) {
     const payload = this.formatMessage(message, context); // Normalizamos el mensaje
     this.logger.debug(payload.message, { ...payload, ...meta }); // Pasamos metadata estructurada
   }
 
   // Método log estándar de Nest. Por convención en NestJS equivale a un "info".
   // Nota: log() e info() son idénticos por diseño (convención NestJS).
-  log(message: unknown, context?: string, meta?: Record<string, any>) {
+  log(message: unknown, context?: string, meta?: Record<string, unknown>) {
     const payload = this.formatMessage(message, context);
     this.logger.info(payload.message, { ...payload, ...meta });
   }
 
   // Alias explícito de log() pero respetando la API de Winston.
   // Nota: Este método es idéntico a log() por diseño (convención NestJS).
-  info(message: unknown, context?: string, meta?: Record<string, any>) {
+  info(message: unknown, context?: string, meta?: Record<string, unknown>) {
     const payload = this.formatMessage(message, context);
     this.logger.info(payload.message, { ...payload, ...meta });
   }
 
   // Método para warnings — útil para advertencias, pero no errores.
-  warn(message: unknown, context?: string, meta?: Record<string, any>) {
+  warn(message: unknown, context?: string, meta?: Record<string, unknown>) {
     const payload = this.formatMessage(message, context);
     this.logger.warn(payload.message, { ...payload, ...meta });
   }
@@ -81,7 +81,7 @@ export class LoggerService implements NestLoggerService {
   // Método para errores. Aquí permitimos adjuntar `trace` (stack trace) además de metadata.
   // Nota: La firma extiende la de NestJS LoggerService agregando el parámetro `meta` opcional.
   // Orden de parámetros: message, trace, context, meta (compatible con NestJS pero con extensión).
-  error(message: unknown, trace?: string, context?: string, meta?: Record<string, any>) {
+  error(message: unknown, trace?: string, context?: string, meta?: Record<string, unknown>) {
     const payload = this.formatMessage(message, context);
 
     // Los errores deben incluir el trace si está disponible.

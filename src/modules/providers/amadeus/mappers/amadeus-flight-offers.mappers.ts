@@ -83,6 +83,11 @@ function parseDurationToMinutes(duration: string): number {
   const hours = match[1] ? parseInt(match[1], 10) : 0;
   const minutes = match[2] ? parseInt(match[2], 10) : 0;
 
+  if (isNaN(hours) || isNaN(minutes)) {
+    // Esto no debería pasar con el regex, pero validamos por seguridad
+    return 0;
+  }
+
   // Convertimos todo a minutos
   return hours * 60 + minutes;
 }
@@ -128,6 +133,15 @@ export function mapAmadeusFlightOfferToNormalized(
   // Parseamos el precio total de string a number
   // Amadeus retorna el precio como string (ej: "500.00"), lo convertimos a número
   const priceAmount = parseFloat(offer.price.total);
+
+  // Validamos que el precio parseado sea un número válido
+  // parseFloat() puede retornar NaN si el string no es un número válido (ej: "abc", "", "   ")
+  // Aunque Amadeus debería siempre retornar números válidos, validamos para evitar problemas
+  if (isNaN(priceAmount) || priceAmount < 0) {
+    throw new Error(
+      `Invalid price format for flight ${offer.id}: "${offer.price.total}". Expected a valid positive number.`,
+    );
+  }
 
   // Extraemos todos los segmentos de todos los itinerarios
   // Un vuelo puede tener múltiples itinerarios (ida y vuelta), cada uno con múltiples segmentos

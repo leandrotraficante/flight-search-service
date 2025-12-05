@@ -1,8 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 // Importamos Axios para crear una instancia de cliente HTTP configurada
 import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
 import { AmadeusTokenService } from './amadeus-token.service';
 import { ResilienceService } from '../../../infra/resilience/resilience.service';
+// Importamos el token de inyección para ResilienceService
+import { RESILIENCE_SERVICE } from '../../../infra/resilience/resilience.types';
 import { LoggerService } from '../../../infra/logging/logger.service';
 import { AppConfigService } from '../../../config/config';
 // Importamos tipos e interfaces de Amadeus para tipado fuerte
@@ -18,6 +20,9 @@ export class AmadeusClient {
     // Servicio de token para obtener tokens de acceso automáticamente
     // Se usa en el interceptor de request para agregar el token a cada petición
     private readonly tokenService: AmadeusTokenService,
+    // Inyectamos ResilienceService usando el token RESILIENCE_SERVICE
+    // Esto mantiene consistencia con el patrón de CACHE_CLIENT
+    @Inject(RESILIENCE_SERVICE)
     private readonly resilience: ResilienceService,
     private readonly logger: LoggerService,
     private readonly config: AppConfigService,
@@ -123,7 +128,7 @@ export class AmadeusClient {
   // Parámetro: config - Configuración opcional de Axios (headers, params, etc.)
   // Retorna: Promise<T> - La respuesta parseada de Amadeus
   // Lanza: AmadeusApiError - Si Amadeus retorna un error o hay problemas de red
-  async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
+  async get<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> {
     // Usamos ResilienceService para ejecutar la petición GET con políticas de resiliencia
     // policyKey: 'amadeus.api' identifica esta política para circuit breaker y métricas
     // La función anónima contiene la lógica de la petición HTTP
@@ -155,7 +160,7 @@ export class AmadeusClient {
   // Parámetro: config - Configuración opcional de Axios (headers, etc.)
   // Retorna: Promise<T> - La respuesta parseada de Amadeus
   // Lanza: AmadeusApiError - Si Amadeus retorna un error o hay problemas de red
-  async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+  async post<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
     // Usamos ResilienceService para ejecutar la petición POST con políticas de resiliencia
     // policyKey: 'amadeus.api' identifica esta política para circuit breaker y métricas
     // La función anónima contiene la lógica de la petición HTTP

@@ -8,6 +8,6 @@ Esto permite desacoplar infraestructura de la lógica.
 // Define la forma de la interfaz de Redis, lo usamos en Dependency Injection
 export interface CacheClient {
   get(key: string): Promise<string | null>;
-  set(key: string, value: string, ...args: any[]): Promise<'OK' | null>;
+  set(key: string, value: string, ...args: unknown[]): Promise<'OK' | null>;
   del(key: string): Promise<number>;
 }

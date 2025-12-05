@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 // Importamos Axios para hacer peticiones HTTP al endpoint OAuth2 de Amadeus
 import axios, { AxiosError } from 'axios';
 // Importamos el servicio de cache para guardar tokens y evitar solicitar nuevos en cada petición
 import { CacheService } from '../../../infra/cache/cache.service';
 // Importamos el servicio de resiliencia para aplicar retry, circuit breaker y timeout
 import { ResilienceService } from '../../../infra/resilience/resilience.service';
+// Importamos el token de inyección para ResilienceService
+import { RESILIENCE_SERVICE } from '../../../infra/resilience/resilience.types';
 // Importamos el servicio de logging para registrar eventos y errores
 import { LoggerService } from '../../../infra/logging/logger.service';
 // Importamos el servicio de configuración para acceder a las credenciales y URLs de Amadeus
@@ -26,6 +28,9 @@ export class AmadeusTokenService {
 
   constructor(
     private readonly cache: CacheService,
+    // Inyectamos ResilienceService usando el token RESILIENCE_SERVICE
+    // Esto mantiene consistencia con el patrón de CACHE_CLIENT
+    @Inject(RESILIENCE_SERVICE)
     private readonly resilience: ResilienceService,
     private readonly logger: LoggerService,
     private readonly config: AppConfigService,
@@ -76,6 +81,32 @@ export class AmadeusTokenService {
 
       // Extraemos el access_token de la respuesta de Amadeus
       const accessToken = tokenResponse.access_token;
+      if (!accessToken || typeof accessToken !== 'string' || accessToken.trim() === '') {
+        this.logger.error('Token inválido o vacío', undefined, undefined, {
+          accessToken,
+        });
+        throw new AmadeusApiError(
+          {
+            errors: [
+              { code: 0, title: 'Invalid Token', detail: 'Token vacío o inválido', status: 500 },
+            ],
+          },
+          500,
+        );
+      }
+
+      // Validamos que expires_in sea un número válido
+      // expires_in indica cuántos segundos hasta que expire el token (típicamente 3600 = 1 hora)
+      if (
+        !tokenResponse.expires_in ||
+        typeof tokenResponse.expires_in !== 'number' ||
+        tokenResponse.expires_in <= 0
+      ) {
+        this.logger.warn('Token response sin expires_in válido', undefined, {
+          expiresIn: tokenResponse.expires_in,
+          tokenResponse,
+        });
+      }
 
       // Guardamos el token en cache con el TTL configurado (típicamente 55 minutos = 3300 segundos)
       // El TTL es menor que expires_in para evitar usar tokens que están a punto de expirar
@@ -190,12 +221,14 @@ export class AmadeusTokenService {
       return response.data;
     } catch (error) {
       // Si hay un error, verificamos si es un error de Axios con respuesta HTTP
-      if (this.isAxiosError(error) && error.response) {
+      // Verificamos explícitamente que error.response existe antes de acceder a sus propiedades
+      if (this.isAxiosError(error) && error.response && error.response.data) {
         // Amadeus retorna errores en formato JSON con estructura AmadeusErrorResponse
         // Intentamos parsear el error como AmadeusErrorResponse
         const amadeusError = error.response.data as AmadeusErrorResponse;
 
         // Si la respuesta tiene la estructura de error de Amadeus, lanzamos AmadeusApiError
+        // Ahora podemos acceder a error.response.status de forma segura porque ya verificamos que existe
         if (amadeusError && amadeusError.errors && Array.isArray(amadeusError.errors)) {
           throw new AmadeusApiError(amadeusError, error.response.status);
         }

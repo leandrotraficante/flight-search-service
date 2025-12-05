@@ -131,10 +131,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         isResponseSent, // Indica si la respuesta HTTP ya fue enviada
         errorResponse,
         ip: request.ip,
-        userAgent: request.get('user-agent'), // User agent del navegador
+        userAgent: request.get('user-agent') || undefined, // User agent del navegador
         headers: {
-          origin: request.get('origin'),
-          referer: request.get('referer'),
+          origin: request.get('origin') || undefined,
+          referer: request.get('referer') || undefined,
         },
         // Si el error es un objeto, intentamos serializarlo
         errorDetails:
@@ -165,7 +165,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         // Usamos directamente su respuesta que ya está formateada
         const amadeusResponse = exception.getResponse() as {
           message: string;
-          errors: any[];
+          errors: unknown[];
           statusCode: number;
         };
         response.status(status).json({
@@ -181,7 +181,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         // Si es otro HttpException con respuesta estructurada, la usamos
         // Verificamos que no sea un array para evitar problemas con el spread operator
         response.status(status).json({
-          ...(errorResponse as Record<string, any>),
+          ...(errorResponse as Record<string, unknown>),
           timestamp: new Date().toISOString(),
           path: request.url,
         });
