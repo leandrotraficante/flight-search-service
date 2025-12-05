@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common'; // Decorador que marca la clase como inyectable en el sistema de DI de NestJS, permite que otras clases la usen mediante constructor injection
 import { ConfigService } from '@nestjs/config'; // Servicio de NestJS que lee variables de entorno del archivo .env, proporciona métodos get() para acceder a las variables
 
-/**
- * Interfaces para tipado de las configuraciones
- * Las interfaces definen la estructura de datos esperada, proporcionando autocompletado y validación de tipos en TypeScript
- */
+// Interfaces para tipado de las configuraciones
+// Las interfaces definen la estructura de datos esperada, proporcionando autocompletado y validación de tipos en TypeScript
+
 export interface AppConfig {
   // Define la estructura de configuración de la aplicación principal
   nodeEnv: string; // Entorno de ejecución (development, production, test), usado para cambiar comportamientos según el ambiente

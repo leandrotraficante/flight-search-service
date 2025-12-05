@@ -5,6 +5,8 @@ import { CACHE_CLIENT } from './cache.types';
 // Importamos el tipo/interfaz del cliente (solo para tipado, no se incluye en el código compilado)
 import type { CacheClient } from './cache.types';
 import { LoggerService } from '../logging/logger.service';
+// Importamos Redis de ioredis para type assertion cuando necesitamos métodos avanzados
+import type Redis from 'ioredis';
 
 // Decorador que marca esta clase como un servicio inyectable en NestJS
 @Injectable()
@@ -99,11 +101,6 @@ export class CacheService {
       // Esto permite guardar estructuras complejas en Redis (que solo acepta strings)
       const payload = JSON.stringify(value);
 
-      // Si payload es undefined, significa que el valor no es serializable
-      if (payload === undefined) {
-        throw new Error('Value is not JSON serializable');
-      }
-
       // Guardamos en Redis con el comando SET
       // 'EX' indica que el siguiente parámetro es el TTL en segundos
       // ttlSeconds define cuántos segundos hasta que expire automáticamente
@@ -142,7 +139,8 @@ export class CacheService {
     try {
       // ioredis tiene acceso a métodos de Redis directamente
       // Necesitamos hacer un cast para acceder a métodos que no están en la interfaz CacheClient
-      const redisClient = this.client;
+      // El cliente real es una instancia de Redis de ioredis, pero está tipado como CacheClient
+      const redisClient = this.client as unknown as Redis;
 
       // Usamos SCAN para buscar keys que coincidan con el patrón
       // SCAN es más seguro que KEYS porque no bloquea Redis
@@ -161,47 +159,56 @@ export class CacheService {
         });
 
         // Cuando terminamos de escanear, eliminamos todas las keys encontradas
-        stream.on('end', async () => {
-          if (keysToDelete.length > 0) {
-            // Límite máximo de keys a eliminar para evitar sobrecargar Redis
-            // Si hay demasiadas keys, limitamos y logueamos una advertencia
-            const MAX_KEYS_TO_DELETE = 10000;
-            let keysToProcess = keysToDelete;
+        stream.on('end', () => {
+          // Usamos una función async inmediatamente invocada (IIFE) para manejar async/await
+          // void indica que intencionalmente no esperamos este Promise (el callback debe ser síncrono)
+          void (async () => {
+            try {
+              if (keysToDelete.length > 0) {
+                // Límite máximo de keys a eliminar para evitar sobrecargar Redis
+                // Si hay demasiadas keys, limitamos y logueamos una advertencia
+                const MAX_KEYS_TO_DELETE = 10000;
+                let keysToProcess = keysToDelete;
 
-            if (keysToDelete.length > MAX_KEYS_TO_DELETE) {
-              this.logger.warn(
-                `Pattern matches ${keysToDelete.length} keys, limiting to ${MAX_KEYS_TO_DELETE}`,
-                undefined,
-                { pattern, totalKeys: keysToDelete.length, maxKeys: MAX_KEYS_TO_DELETE },
-              );
-              keysToProcess = keysToDelete.slice(0, MAX_KEYS_TO_DELETE);
+                if (keysToDelete.length > MAX_KEYS_TO_DELETE) {
+                  this.logger.warn(
+                    `Pattern matches ${keysToDelete.length} keys, limiting to ${MAX_KEYS_TO_DELETE}`,
+                    undefined,
+                    { pattern, totalKeys: keysToDelete.length, maxKeys: MAX_KEYS_TO_DELETE },
+                  );
+                  keysToProcess = keysToDelete.slice(0, MAX_KEYS_TO_DELETE);
+                }
+
+                let deletedCount = 0;
+                // Eliminamos todas las keys de una vez usando DEL con múltiples keys
+                // Si hay muchas keys, las eliminamos en lotes para evitar sobrecargar Redis
+                const batchSize = 100;
+                for (let i = 0; i < keysToProcess.length; i += batchSize) {
+                  const batch = keysToProcess.slice(i, i + batchSize);
+                  // del() de ioredis acepta múltiples keys como argumentos separados
+                  const deleted = await redisClient.del(...batch);
+                  deletedCount += deleted;
+                }
+
+                this.logger.info(
+                  `DEL PATTERN → ${pattern} (${deletedCount} keys eliminadas)`,
+                  undefined,
+                  {
+                    pattern,
+                    keysDeleted: deletedCount,
+                  },
+                );
+                resolve(deletedCount);
+              } else {
+                this.logger.debug(`DEL PATTERN → ${pattern} (0 keys encontradas)`, undefined, {
+                  pattern,
+                });
+                resolve(0);
+              }
+            } catch (error) {
+              reject(error instanceof Error ? error : new Error(String(error)));
             }
-
-            let deletedCount = 0;
-            // Eliminamos todas las keys de una vez usando DEL con múltiples keys
-            // Si hay muchas keys, las eliminamos en lotes para evitar sobrecargar Redis
-            const batchSize = 100;
-            for (let i = 0; i < keysToProcess.length; i += batchSize) {
-              const batch = keysToProcess.slice(i, i + batchSize);
-              const deleted = await redisClient.del(...batch);
-              deletedCount += deleted;
-            }
-
-            this.logger.info(
-              `DEL PATTERN → ${pattern} (${deletedCount} keys eliminadas)`,
-              undefined,
-              {
-                pattern,
-                keysDeleted: deletedCount,
-              },
-            );
-            resolve(deletedCount);
-          } else {
-            this.logger.debug(`DEL PATTERN → ${pattern} (0 keys encontradas)`, undefined, {
-              pattern,
-            });
-            resolve(0);
-          }
+          })();
         });
 
         stream.on('error', (error: Error) => {
