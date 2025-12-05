@@ -125,8 +125,13 @@ export class CacheService {
       await this.client.del(key); // del() elimina la key de Redis, retorna el número de keys eliminadas
       this.logger.debug(`DEL → ${key}`); // Logging para confirmar la eliminación
     } catch (err) {
-      this.logger.error(`Error al eliminar key ${key}`, undefined, undefined, { err });
-      throw err; // Re-lanzamos el error para que el caller pueda manejarlo
+      // Si falla la eliminación, logueamos pero no lanzamos excepción, Esto permite que la app continúe aunque el cache falle
+      this.logger.error(
+        `Error al eliminar key ${key}`,
+        err instanceof Error ? err.stack : undefined,
+        undefined,
+        { err: err instanceof Error ? err.message : String(err) },
+      );
     }
   }
 

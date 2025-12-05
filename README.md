@@ -1654,8 +1654,10 @@ Ambos formatos se transforman automáticamente a arrays y se normalizan (trim, u
 - **`src/infra/cache/`**: Sistema de caché Redis completo y funcional
   - ✅ Métodos básicos (get, set, delete)
   - ✅ Patrón cache-aside (wrap)
-  - ✅ Eliminación por patrón (deleteByPattern)
+  - ✅ Eliminación por patrón (deleteByPattern) usando SCAN
   - ✅ Métricas (hits/misses)
+  - ✅ Type safety mejorado (uso de `unknown` en lugar de `any`)
+  - ✅ Type assertions para métodos avanzados de Redis (scanStream, del con múltiples keys)
 - **`src/infra/logging/`**: Sistema de logging completo con Winston
   - ✅ LoggerService con niveles y contexto
   - ✅ LoggingInterceptor para requests/responses
@@ -1672,6 +1674,7 @@ Ambos formatos se transforman automáticamente a arrays y se normalizan (trim, u
   - ✅ Mappers para normalización de datos
   - ✅ Servicio principal de búsqueda
   - ✅ Módulo completo y exportable
+  - ✅ Type safety mejorado (uso de `unknown` en lugar de `any` en métodos genéricos)
 - **`src/modules/search/`**: Módulo de búsqueda de vuelos COMPLETO
   - ✅ Controller con endpoint `/search/flights`
   - ✅ Service con lógica de negocio y cache inteligente
