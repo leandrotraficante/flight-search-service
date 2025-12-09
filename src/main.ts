@@ -4,9 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, BadRequestException } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { AppConfigService } from './config/config';
-// Importamos el filtro global de excepciones para capturar todos los errores no manejados
-import { GlobalExceptionFilter } from './common/exceptions/global-exception.filter';
-// Importamos LoggerService para inyectarlo en el filtro
+// Importamos LoggerService para logging de errores asíncronos
 import { LoggerService } from './infra/logging/logger.service';
 
 async function bootstrap() {
@@ -18,29 +16,24 @@ async function bootstrap() {
   // Configuramos handlers para errores asíncronos no capturados
   // Estos errores pueden ocurrir después de que una respuesta HTTP ya fue enviada
   // Por ejemplo: promesas rechazadas que no fueron capturadas, errores en callbacks asíncronos, etc.
-  process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  process.on('unhandledRejection', (reason: unknown, _promise: Promise<unknown>) => {
     // Capturamos promesas rechazadas que no fueron manejadas con .catch()
     const errorMessage = reason instanceof Error ? reason.message : String(reason);
     const errorStack = reason instanceof Error ? reason.stack : undefined;
     const errorType = reason instanceof Error ? reason.constructor.name : typeof reason;
     const errorName = reason instanceof Error ? reason.name : 'Unknown';
-    
-    logger.error(
-      `Unhandled Promise Rejection [${errorType}]`,
-      errorStack,
-      'process',
-      {
-        reason: errorMessage,
-        errorType,
-        errorName,
-        promise: promise.toString(),
-        // Intentamos serializar el reason completo si es un objeto
-        reasonDetails:
-          reason && typeof reason === 'object'
-            ? JSON.stringify(reason, Object.getOwnPropertyNames(reason))
-            : String(reason),
-      },
-    );
+
+    logger.error(`Unhandled Promise Rejection [${errorType}]`, errorStack, 'process', {
+      reason: errorMessage,
+      errorType,
+      errorName,
+      // Intentamos serializar el reason completo si es un objeto
+      reasonDetails:
+        reason && typeof reason === 'object'
+          ? JSON.stringify(reason, Object.getOwnPropertyNames(reason))
+          : String(reason),
+    });
   });
 
   process.on('uncaughtException', (error: Error) => {
@@ -111,14 +104,13 @@ async function bootstrap() {
     }),
   );
 
-  // Configuramos el filtro global de excepciones
-  // Este filtro captura todos los errores no manejados y los formatea de manera consistente
-  // También los registra en los logs para debugging
-  app.useGlobalFilters(new GlobalExceptionFilter(logger));
+  // Nota: GlobalExceptionFilter está registrado en LoggerModule usando APP_FILTER
+  // No es necesario registrarlo aquí también para evitar duplicación
 
   // Obtener AppConfigService del contenedor de NestJS
   const configService = app.get(AppConfigService);
 
   await app.listen(configService.port);
 }
-bootstrap();
+// Iniciamos la aplicación - void indica que intencionalmente no esperamos esta promesa
+void bootstrap();

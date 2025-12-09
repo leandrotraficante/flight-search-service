@@ -184,7 +184,6 @@ export class SearchService {
     }
 
     // Si hay returnDate, validamos y usamos la fecha más cercana
-    let dateToUse = departure;
     let diffDays = diffDaysDeparture;
 
     if (params.returnDate) {
@@ -209,7 +208,6 @@ export class SearchService {
       // Usamos la fecha más cercana (menor diferencia con today) para calcular el TTL
       // Esto asegura que el TTL refleje la urgencia del vuelo más próximo
       if (diffDaysReturn < diffDaysDeparture) {
-        dateToUse = returnDate;
         diffDays = diffDaysReturn;
       }
     }

@@ -38,6 +38,20 @@ export class AmadeusTokenService {
     // Establecemos el contexto del logger para que todos los logs de este servicio tengan el mismo contexto
     // Esto facilita filtrar logs por servicio en sistemas de agregación de logs
     this.logger.setContext(AmadeusTokenService.name);
+
+    // Validar credenciales al inicializar el servicio - Si no están configuradas, lanzar un error
+    const amadeusConfig = this.config.amadeus;
+    if (!amadeusConfig.apiKey || amadeusConfig.apiKey.trim() === '') {
+      throw new Error(
+        'AMADEUS_API_KEY no está configurada. Por favor, configura AMADEUS_API_KEY en tu archivo .env',
+      );
+    }
+
+    if (!amadeusConfig.apiSecret || amadeusConfig.apiSecret.trim() === '') {
+      throw new Error(
+        'AMADEUS_API_SECRET no está configurada. Por favor, configura AMADEUS_API_SECRET en tu archivo .env',
+      );
+    }
   }
 
   // 1. Busca token en cache

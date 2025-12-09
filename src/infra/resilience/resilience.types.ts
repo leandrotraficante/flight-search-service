@@ -19,6 +19,7 @@ export interface ResilienceOptions {
   enableCircuitBreaker?: boolean; // Flag para habilitar/deshabilitar circuit breaker para esta operación específica (opcional, default true)
   enableRetry?: boolean; // Flag para habilitar/deshabilitar retry para esta operación específica (opcional, default true)
   enableTimeout?: boolean; // Flag para habilitar/deshabilitar timeout para esta operación específica (opcional, default true)
+  circuitBreaker?: CircuitBreakerPolicyConfig; // Configuración del circuit breaker (opcional, usa default si no se especifica)
 }
 
 // Interfaz que define la forma de las métricas de circuit breaker

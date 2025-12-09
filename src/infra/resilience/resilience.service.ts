@@ -8,6 +8,8 @@ import type {
 } from './resilience.types';
 import { composePolicy } from './policies/policy-composer';
 import { LoggerService } from '../logging/logger.service';
+import { AppConfigService } from '../../config/config';
+import { resilienceConfigFactory } from './resilience.config';
 
 // Tipo de política compuesta de Cockatiel (retry + circuit-breaker + timeout)
 // composePolicy usa internamente wrap() de cockatiel para combinar políticas
@@ -21,7 +23,10 @@ type ComposedPolicy = ReturnType<typeof composePolicy>;
  */
 @Injectable()
 export class ResilienceService {
-  constructor(private readonly logger: LoggerService) {
+  constructor(
+    private readonly logger: LoggerService,
+    private readonly config: AppConfigService,
+  ) {
     this.logger.setContext(ResilienceService.name);
   }
 
@@ -37,7 +42,13 @@ export class ResilienceService {
     // Si hay options, no cachear (crear nueva política cada vez)
     // Esto evita que políticas con diferentes options se reutilicen incorrectamente
     if (options) {
-      return composePolicy(options);
+      this.logger.debug(`Creating new policy with custom options: ${policyKey}`, undefined, {
+        policyKey,
+        hasTimeout: options.timeoutMs !== undefined,
+        hasRetry: options.retryAttempts !== undefined,
+        hasCircuitBreaker: options.circuitBreaker !== undefined,
+      });
+      return composePolicy(options, this.logger);
     }
 
     // Solo cachear si no hay options
@@ -56,8 +67,31 @@ export class ResilienceService {
     }
 
     if (!this.policies.has(policyKey)) {
-      const policy = composePolicy();
+      // Usar configuraciones por defecto desde resilienceConfigFactory cuando no hay options
+      // Mantiene consistencia con el patrón de cache.config.ts
+      const resilienceConfig = resilienceConfigFactory(this.config);
+      const defaultOptions: ResilienceOptions = {
+        timeoutMs: resilienceConfig.timeoutMs,
+        retryAttempts: resilienceConfig.retryAttempts,
+        retryBaseDelayMs: resilienceConfig.retryBaseDelayMs,
+        circuitBreaker: {
+          failureThreshold: resilienceConfig.circuitBreaker.failureThreshold,
+          halfOpenAfterMs: resilienceConfig.circuitBreaker.halfOpenAfterMs,
+          successThreshold: resilienceConfig.circuitBreaker.successThreshold,
+        },
+      };
+      const policy = composePolicy(defaultOptions, this.logger);
       this.policies.set(policyKey, policy);
+      this.logger.debug(`Policy created and cached: ${policyKey}`, undefined, {
+        policyKey,
+        timeoutMs: defaultOptions.timeoutMs,
+        retryAttempts: defaultOptions.retryAttempts,
+        circuitBreakerThreshold: defaultOptions.circuitBreaker?.failureThreshold ?? 3,
+      });
+    } else {
+      this.logger.debug(`Policy cache HIT: ${policyKey}`, undefined, {
+        policyKey,
+      });
     }
 
     const policy = this.policies.get(policyKey);
@@ -96,6 +130,18 @@ export class ResilienceService {
       const error = err instanceof Error ? err : new Error(String(err));
       const errorMessage = error.message || String(err);
 
+      // Determinar qué política causó el fallo basándose en el tipo de error
+      let failedPolicy: ResilienceException['policy'] = 'unknown';
+      if (error.name === 'BrokenCircuitError' || error.name === 'IsolatedCircuitError') {
+        failedPolicy = 'circuit-breaker';
+      } else if (error.name === 'TaskCancelledError' || errorMessage.includes('timeout')) {
+        failedPolicy = 'timeout';
+      } else if (errorMessage.includes('retry') || errorMessage.includes('attempt')) {
+        failedPolicy = 'retry';
+      } else if (error && 'policy' in error && typeof error.policy === 'string') {
+        failedPolicy = error.policy as ResilienceException['policy'];
+      }
+
       // Build a ResilienceException-like payload
       const exception: ResilienceException = {
         name: error.name || 'ResilienceError',
@@ -105,12 +151,20 @@ export class ResilienceService {
           totalDurationMs: duration,
           success: false,
         } as ResilienceMetrics,
-        policy: (error && 'policy' in error && typeof error.policy === 'string'
-          ? error.policy
-          : 'unknown') as ResilienceException['policy'],
+        policy: failedPolicy,
       } as ResilienceException;
 
-      this.logger.warn(`[resilience:${policyKey}] failure after ${duration}ms: ${errorMessage}`);
+      this.logger.warn(
+        `[resilience:${policyKey}] failure after ${duration}ms (policy: ${failedPolicy}): ${errorMessage}`,
+        error.stack,
+        {
+          policyKey,
+          failedPolicy,
+          durationMs: duration,
+          errorName: error.name,
+          errorType: error.constructor.name,
+        },
+      );
 
       throw exception;
     }

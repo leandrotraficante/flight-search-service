@@ -1293,24 +1293,95 @@ describe('AppController (e2e)', () => {
 
 ### 7.1 Variables de Entorno
 
-Crea un archivo `.env` en la raíz del proyecto:
+**⚠️ IMPORTANTE**: Antes de iniciar la aplicación, debes configurar las variables de entorno.
+
+#### Opción 1: Usar el archivo `.env.example` (Recomendado)
+
+1. Copia el archivo `.env.example` a `.env`:
+```bash
+cp .env.example .env
+```
+
+2. Edita el archivo `.env` y completa las variables necesarias (especialmente `AMADEUS_API_KEY` y `AMADEUS_API_SECRET`).
+
+#### Opción 2: Crear manualmente el archivo `.env`
+
+Crea un archivo `.env` en la raíz del proyecto con el siguiente contenido:
 
 ```env
-# Puerto del servidor HTTP
-PORT=3000
-
-# Configuración de Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=              # Opcional, dejar vacío si no hay password
-REDIS_TTL_SECONDS=3600       # TTL por defecto (1 hora)
-
-# Ambiente
+# ============================================
+# Aplicación
+# ============================================
 NODE_ENV=development         # development | staging | production
+PORT=3000                    # Puerto del servidor HTTP (por defecto: 3000)
 
-# Logging (opcional, usa valores por defecto si no se especifica)
-# LOG_LEVEL=debug            # debug | info | warn | error (solo si necesitas override)
+# ============================================
+# Redis
+# ============================================
+REDIS_HOST=localhost         # Host de Redis (por defecto: localhost)
+REDIS_PORT=6379              # Puerto de Redis (por defecto: 6379)
+REDIS_PASSWORD=              # Contraseña de Redis (opcional, dejar vacío si no hay password)
+REDIS_TTL_SECONDS=3600       # TTL por defecto en segundos (por defecto: 3600 = 1 hora)
+
+# ============================================
+# Amadeus API (sandbox por defecto)
+# ============================================
+# ⚠️ OBLIGATORIO: Obtén tus credenciales en https://developers.amadeus.com/
+AMADEUS_API_KEY=your_test_api_key          # Tu API Key de Amadeus (REQUERIDO)
+AMADEUS_API_SECRET=your_test_api_secret    # Tu API Secret de Amadeus (REQUERIDO)
+AMADEUS_BASE_URL=https://test.api.amadeus.com  # URL base de Amadeus (por defecto: sandbox)
+AMADEUS_TOKEN_CACHE_TTL=3300               # TTL del token en cache en segundos (por defecto: 3300 = 55 minutos)
+
+# ============================================
+# Resilience (Patrones de Resiliencia)
+# ============================================
+# Configuración de timeout, retry y circuit breaker
+# Si no se especifican, se usan los valores por defecto indicados
+RES_TIMEOUT_MS=1000              # Timeout en milisegundos (por defecto: 1000ms = 1 segundo)
+RES_RETRY_ATTEMPTS=2             # Número de reintentos (por defecto: 2)
+RES_RETRY_BASE_MS=200            # Delay base para retry en ms (por defecto: 200ms)
+RES_CB_FAILURE_THRESHOLD=3        # Umbral de fallos para circuit breaker (por defecto: 3)
+RES_CB_HALFOPEN_MS=10000         # Tiempo en ms antes de intentar half-open (por defecto: 10000ms = 10s)
+RES_CB_SUCCESS_THRESHOLD=1       # Umbral de éxitos para cerrar circuit breaker (por defecto: 1)
 ```
+
+#### Variables Requeridas vs Opcionales
+
+**🔴 REQUERIDAS** (la aplicación fallará sin ellas):
+- `AMADEUS_API_KEY` - Clave de API de Amadeus
+- `AMADEUS_API_SECRET` - Secreto de API de Amadeus
+
+**🟡 OPCIONALES** (tienen valores por defecto):
+- Todas las demás variables tienen valores por defecto razonables y funcionarán sin configurarlas.
+
+#### Valores por Defecto
+
+Si no configuras una variable, la aplicación usará estos valores:
+
+| Variable | Valor por Defecto | Descripción |
+|----------|-------------------|-------------|
+| `NODE_ENV` | `development` | Ambiente de ejecución |
+| `PORT` | `3000` | Puerto del servidor HTTP |
+| `REDIS_HOST` | `localhost` | Host de Redis |
+| `REDIS_PORT` | `6379` | Puerto de Redis |
+| `REDIS_PASSWORD` | `undefined` (sin password) | Contraseña de Redis |
+| `REDIS_TTL_SECONDS` | `3600` (1 hora) | TTL por defecto del cache |
+| `AMADEUS_BASE_URL` | `https://test.api.amadeus.com` | URL de sandbox de Amadeus |
+| `AMADEUS_TOKEN_CACHE_TTL` | `3300` (55 minutos) | TTL del token en cache |
+| `RES_TIMEOUT_MS` | `1000` (1 segundo) | Timeout de operaciones |
+| `RES_RETRY_ATTEMPTS` | `2` | Número de reintentos |
+| `RES_RETRY_BASE_MS` | `200` | Delay base para retry |
+| `RES_CB_FAILURE_THRESHOLD` | `3` | Umbral de fallos para circuit breaker |
+| `RES_CB_HALFOPEN_MS` | `10000` (10 segundos) | Tiempo antes de half-open |
+| `RES_CB_SUCCESS_THRESHOLD` | `1` | Umbral de éxitos para cerrar circuit breaker |
+
+#### Obtener Credenciales de Amadeus
+
+1. Ve a [https://developers.amadeus.com/](https://developers.amadeus.com/)
+2. Crea una cuenta (es gratis)
+3. Crea una nueva aplicación en el dashboard
+4. Copia tu `API Key` y `API Secret`
+5. Pega estos valores en tu archivo `.env`
 
 ### 7.2 Docker Compose
 
@@ -1322,7 +1393,22 @@ docker-compose up -d
 
 Esto inicia:
 - **Redis** en `localhost:6379`
-- **Redis Insight** en `http://localhost:8001` (interfaz gráfica)
+- **Redis Insight** en `http://localhost:5540` (interfaz gráfica para inspeccionar datos de Redis)
+
+**Verificar que los servicios están corriendo:**
+```bash
+docker-compose ps
+```
+
+**Ver logs de Redis:**
+```bash
+docker-compose logs redis
+```
+
+**Detener los servicios:**
+```bash
+docker-compose down
+```
 
 ### 7.3 Scripts Disponibles
 
@@ -1352,24 +1438,119 @@ pnpm run test:e2e      # Tests end-to-end
 
 ### 8.1 Iniciar el Proyecto
 
-1. **Instalar dependencias**:
+Sigue estos pasos en orden para levantar la aplicación correctamente:
+
+#### Paso 1: Instalar Dependencias
+
 ```bash
 pnpm install
 ```
 
-2. **Iniciar Redis** (si usas Docker):
+#### Paso 2: Configurar Variables de Entorno
+
+**Opción A: Usar `.env.example` (Recomendado)**
 ```bash
-docker-compose up -d
+# Copia el archivo de ejemplo
+cp .env.example .env
+
+# Edita .env y completa AMADEUS_API_KEY y AMADEUS_API_SECRET
+# Puedes usar cualquier editor de texto
 ```
 
-3. **Crear archivo `.env`** con las variables necesarias
+**Opción B: Crear `.env` manualmente**
 
-4. **Iniciar en desarrollo**:
+Crea un archivo `.env` en la raíz del proyecto con las variables necesarias (ver sección [7.1 Variables de Entorno](#71-variables-de-entorno)).
+
+**⚠️ IMPORTANTE**: Debes configurar al menos:
+- `AMADEUS_API_KEY` - Tu API Key de Amadeus
+- `AMADEUS_API_SECRET` - Tu API Secret de Amadeus
+
+Sin estas credenciales, la aplicación **no iniciará** (lanzará un error al intentar crear `AmadeusTokenService`).
+
+#### Paso 3: Iniciar Redis
+
+La aplicación necesita Redis para el sistema de cache. Tienes dos opciones:
+
+**Opción A: Usar Docker Compose (Recomendado para desarrollo)**
+
+```bash
+# Inicia Redis y Redis Insight
+docker-compose up -d
+
+# Verifica que Redis está corriendo
+docker ps
+```
+
+Esto iniciará:
+- **Redis** en `localhost:6379`
+- **Redis Insight** (interfaz gráfica) en `http://localhost:5540`
+
+**Opción B: Redis local instalado**
+
+Si tienes Redis instalado localmente, asegúrate de que esté corriendo:
+```bash
+# En macOS/Linux
+redis-server
+
+# Verifica que está corriendo
+redis-cli ping
+# Debe responder: PONG
+```
+
+#### Paso 4: Iniciar la Aplicación
+
+**Modo Desarrollo (con hot-reload):**
 ```bash
 pnpm run start:dev
 ```
 
-La aplicación estará disponible en `http://localhost:3000`
+**Modo Producción:**
+```bash
+# Compilar primero
+pnpm run build
+
+# Ejecutar versión compilada
+pnpm run start:prod
+```
+
+#### Paso 5: Verificar que Funciona
+
+Una vez iniciada, deberías ver en la consola:
+```
+[Nest] INFO [NestFactory] Starting Nest application...
+[Nest] INFO [InstanceLoader] AppModule dependencies initialized
+[Nest] INFO [InstanceLoader] CacheModule dependencies initialized
+[Nest] INFO [InstanceLoader] LoggerModule dependencies initialized
+...
+[Nest] INFO [NestApplication] Nest application successfully started
+```
+
+La aplicación estará disponible en: **`http://localhost:3000`** (o el puerto que configuraste en `PORT`)
+
+#### Probar el Endpoint Principal
+
+```bash
+# Búsqueda simple de vuelos
+curl "http://localhost:3000/search/flights?origin=JFK&destination=LAX&departureDate=2026-06-25&adults=1"
+```
+
+Si todo está bien configurado, deberías recibir una respuesta JSON con vuelos.
+
+#### Troubleshooting
+
+**Error: "AMADEUS_API_KEY no está configurada"**
+- Verifica que el archivo `.env` existe en la raíz del proyecto
+- Verifica que `AMADEUS_API_KEY` y `AMADEUS_API_SECRET` están configuradas
+- Reinicia la aplicación después de modificar `.env`
+
+**Error: "Redis connection error"**
+- Verifica que Redis está corriendo: `docker ps` o `redis-cli ping`
+- Verifica que `REDIS_HOST` y `REDIS_PORT` en `.env` coinciden con tu Redis
+- Si usas Docker, verifica: `docker-compose ps`
+
+**Error: "Port 3000 already in use"**
+- Cambia el puerto en `.env`: `PORT=3001`
+- O detén el proceso que está usando el puerto 3000
 
 ### 8.2 Endpoints Disponibles
 
