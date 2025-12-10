@@ -1828,6 +1828,8 @@ NODE_ENV=production pnpm run start:dev
 **Para volver a desarrollo:**
 Simplemente cambia `NODE_ENV=development` en tu `.env` o reinicia sin la variable de entorno.
 
+=======
+
 ### 8.6 Características Avanzadas del Cache
 
 #### Eliminación por Patrón
