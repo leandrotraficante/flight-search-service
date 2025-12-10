@@ -1788,6 +1788,46 @@ export class MyService {
 
 **Nota**: Los archivos de log se crean automáticamente en la carpeta `logs/` en producción. Asegúrate de que esta carpeta tenga permisos de escritura.
 
+#### Simular Entorno de Producción para Generar Logs
+
+Si quieres probar el sistema de logging con archivos sin desplegar a producción, puedes simular el entorno de producción cambiando la variable de entorno:
+
+**Opción 1: Modificar `.env` (Recomendado)**
+
+1. Abre tu archivo `.env`
+2. Cambia la línea:
+   ```env
+   NODE_ENV=production
+   ```
+3. Reinicia la aplicación:
+   ```bash
+   pnpm run start:dev
+   ```
+
+**Opción 2: Variable de entorno temporal (sin modificar `.env`)**
+
+```bash
+# Windows PowerShell
+$env:NODE_ENV="production"; pnpm run start:dev
+
+# Windows CMD
+set NODE_ENV=production && pnpm run start:dev
+
+# Linux/Mac
+NODE_ENV=production pnpm run start:dev
+```
+
+**Resultado:**
+- Se creará automáticamente la carpeta `logs/` (si no existe)
+- Se generarán dos archivos:
+  - `logs/error.log`: Solo logs de nivel `error`
+  - `logs/combined.log`: Todos los logs (nivel `info` y superior)
+- Los logs en archivos estarán en formato JSON estructurado
+- Los logs en consola también aparecerán (en formato JSON)
+
+**Para volver a desarrollo:**
+Simplemente cambia `NODE_ENV=development` en tu `.env` o reinicia sin la variable de entorno.
+
 ### 8.6 Características Avanzadas del Cache
 
 #### Eliminación por Patrón
