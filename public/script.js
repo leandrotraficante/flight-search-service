@@ -5,6 +5,10 @@ const errorDiv = document.getElementById('error');
 const resultsSection = document.getElementById('results');
 const resultsTitle = document.getElementById('resultsTitle');
 const resultsList = document.getElementById('resultsList');
+const sortSelect = document.getElementById('sortBy');
+
+// Guardar datos originales para re-ordenar sin hacer fetch
+let currentFlightData = null;
 
 // Configurar fecha mínima (hoy) para fecha de salida
 const departureDateInput = document.getElementById('departureDate');
@@ -221,18 +225,47 @@ function showNoResults() {
 }
 
 function displayResults(data) {
+    // Guardar datos originales para poder re-ordenar después
+    currentFlightData = data;
+    
     // Obtener cantidad de adultos del formulario
     const adults = parseInt(document.getElementById('adults').value) || 1;
     
     resultsTitle.textContent = `Encontrados ${data.count} vuelo${data.count !== 1 ? 's' : ''}`;
+    
+    // Ordenar y mostrar resultados
+    renderSortedResults(data, adults);
+    
+    resultsSection.style.display = 'block';
+}
+
+function renderSortedResults(data, adults) {
+    // Obtener criterio de ordenamiento seleccionado
+    const sortBy = sortSelect.value || 'price';
+    
+    // Crear copia del array para ordenar (no modificar el original)
+    const sortedFlights = [...data.flights].sort((a, b) => {
+        switch(sortBy) {
+            case 'price':
+                return a.price.amount - b.price.amount;
+            case 'duration':
+                return a.durationMinutes - b.durationMinutes;
+            case 'stops':
+                // Escalas = número de segmentos - 1 (vuelo directo tiene 0 escalas)
+                return (a.segments.length - 1) - (b.segments.length - 1);
+            default:
+                return 0;
+        }
+    });
+    
+    // Limpiar lista anterior
     resultsList.innerHTML = '';
     
-    data.flights.forEach(flight => {
+    // Renderizar vuelos ordenados
+    sortedFlights.forEach(flight => {
         const flightCard = createFlightCard(flight, adults);
         resultsList.appendChild(flightCard);
     });
-    
-    resultsSection.style.display = 'block';
 }
 
 function createFlightCard(flight, adults) {
@@ -328,5 +361,15 @@ function createSegmentDiv(segment, index, totalSegments) {
     `;
     
     return div;
+}
+
+// Listener para re-ordenar resultados cuando cambie el selector
+if (sortSelect) {
+    sortSelect.addEventListener('change', function() {
+        if (currentFlightData) {
+            const adults = parseInt(document.getElementById('adults').value) || 1;
+            renderSortedResults(currentFlightData, adults);
+        }
+    });
 }
 

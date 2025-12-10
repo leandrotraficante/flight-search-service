@@ -153,6 +153,14 @@
                 <!-- Resultados -->
                 <section id="results" class="results" style="display: none;">
                     <h2 id="resultsTitle"></h2>
+                    <div id="sortControls" class="sort-controls">
+                        <label for="sortBy">Ordenar por:</label>
+                        <select id="sortBy">
+                            <option value="price">Precio (menor a mayor)</option>
+                            <option value="duration">Tiempo de vuelo (más corto primero)</option>
+                            <option value="stops">Escalas (menos escalas primero)</option>
+                        </select>
+                    </div>
                     <div id="resultsList"></div>
                 </section>
             </div>
