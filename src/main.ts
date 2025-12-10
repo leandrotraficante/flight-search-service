@@ -1,14 +1,21 @@
 // src/main.ts
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 // Importamos ValidationPipe y BadRequestException para validación global de DTOs
 import { ValidationPipe, BadRequestException } from '@nestjs/common';
+import { join } from 'path';
 import { AppModule } from './app.module';
 import { AppConfigService } from './config/config';
 // Importamos LoggerService para logging de errores asíncronos
 import { LoggerService } from './infra/logging/logger.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  
+  // Servir archivos estáticos desde la carpeta public/
+  app.useStaticAssets(join(__dirname, '..', 'public'), {
+    prefix: '/', // Los archivos estarán en la raíz: /index.html, /styles.css, /script.js
+  });
 
   // Obtener LoggerService antes de configurar handlers globales
   const logger = app.get(LoggerService);
