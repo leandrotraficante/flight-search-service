@@ -301,11 +301,98 @@ function createFlightCard(flight, adults, children) {
     `;
   card.appendChild(header);
 
-  // Segmentos
-  flight.segments.forEach((segment, index) => {
-    const segmentDiv = createSegmentDiv(segment, index, flight.segments.length);
-    card.appendChild(segmentDiv);
-  });
+  // Detectar si hay vuelo de ida y vuelta
+  const returnDate = returnDateInput.value;
+  const hasReturnFlight = returnDate && returnDate.trim() !== '';
+
+  if (hasReturnFlight && flight.segments.length > 0) {
+    // Separar segmentos en ida y vuelta
+    const origin = document.getElementById('origin').value.toUpperCase();
+    const destination = document.getElementById('destination').value.toUpperCase();
+    const departureDate = departureDateInput.value;
+
+    // Encontrar el punto de división entre ida y vuelta
+    // Los segmentos de ida terminan en el destino, los de vuelta empiezan desde el destino
+    let returnStartIndex = -1;
+    
+    // Buscar el primer segmento que:
+    // 1. Sale del destino (vuelo de regreso)
+    // 2. O tiene una fecha de salida >= fecha de regreso del formulario
+    for (let i = 0; i < flight.segments.length; i++) {
+      const segment = flight.segments[i];
+      const segmentDate = new Date(segment.departure.time).toISOString().split('T')[0];
+      
+      // Si el segmento sale del destino y la fecha es >= fecha de regreso, es vuelo de vuelta
+      if (segment.departure.airport === destination && segmentDate >= returnDate) {
+        returnStartIndex = i;
+        break;
+      }
+      
+      // Alternativa: si la fecha del segmento es >= fecha de regreso, probablemente es vuelo de vuelta
+      if (segmentDate >= returnDate) {
+        returnStartIndex = i;
+        break;
+      }
+    }
+
+    // Si no encontramos un punto claro de división, buscar por aeropuerto de salida
+    if (returnStartIndex === -1) {
+      for (let i = 0; i < flight.segments.length; i++) {
+        const segment = flight.segments[i];
+        // Si encontramos un segmento que sale del destino, es el inicio del vuelo de vuelta
+        if (segment.departure.airport === destination) {
+          returnStartIndex = i;
+          break;
+        }
+      }
+    }
+
+    // Si aún no encontramos, usar la mitad como aproximación
+    if (returnStartIndex === -1) {
+      returnStartIndex = Math.ceil(flight.segments.length / 2);
+    }
+
+    const outboundSegments = flight.segments.slice(0, returnStartIndex);
+    const returnSegments = flight.segments.slice(returnStartIndex);
+
+    // Renderizar segmentos de ida
+    if (outboundSegments.length > 0) {
+      const outboundSection = document.createElement('div');
+      outboundSection.className = 'flight-section outbound-section';
+      const outboundTitle = document.createElement('div');
+      outboundTitle.className = 'section-title';
+      outboundTitle.textContent = '✈️ Ida';
+      outboundSection.appendChild(outboundTitle);
+
+      outboundSegments.forEach((segment, index) => {
+        const segmentDiv = createSegmentDiv(segment, index, outboundSegments.length);
+        outboundSection.appendChild(segmentDiv);
+      });
+      card.appendChild(outboundSection);
+    }
+
+    // Renderizar segmentos de vuelta
+    if (returnSegments.length > 0) {
+      const returnSection = document.createElement('div');
+      returnSection.className = 'flight-section return-section';
+      const returnTitle = document.createElement('div');
+      returnTitle.className = 'section-title';
+      returnTitle.textContent = '🔄 Vuelta';
+      returnSection.appendChild(returnTitle);
+
+      returnSegments.forEach((segment, index) => {
+        const segmentDiv = createSegmentDiv(segment, index, returnSegments.length);
+        returnSection.appendChild(segmentDiv);
+      });
+      card.appendChild(returnSection);
+    }
+  } else {
+    // Vuelo solo de ida - mostrar todos los segmentos sin separación
+    flight.segments.forEach((segment, index) => {
+      const segmentDiv = createSegmentDiv(segment, index, flight.segments.length);
+      card.appendChild(segmentDiv);
+    });
+  }
 
   return card;
 }
