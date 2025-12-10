@@ -252,7 +252,7 @@ button[type="submit"]:disabled {
     gap: 10px;
 }
 
-.flight-adults {
+.flight-passengers {
     font-size: 0.7em;
     font-weight: normal;
     opacity: 0.8;

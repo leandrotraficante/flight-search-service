@@ -229,18 +229,19 @@ function displayResults(data) {
   // Guardar datos originales para poder re-ordenar después
   currentFlightData = data;
 
-  // Obtener cantidad de adultos del formulario
+  // Obtener cantidad de adultos y niños del formulario
   const adults = parseInt(document.getElementById('adults').value) || 1;
+  const children = parseInt(document.getElementById('children').value) || 0;
 
   resultsTitle.textContent = `Encontrados ${data.count} vuelo${data.count !== 1 ? 's' : ''}`;
 
   // Ordenar y mostrar resultados
-  renderSortedResults(data, adults);
+  renderSortedResults(data, adults, children);
 
   resultsSection.style.display = 'block';
 }
 
-function renderSortedResults(data, adults) {
+function renderSortedResults(data, adults, children) {
   // Obtener criterio de ordenamiento seleccionado
   const sortBy = sortSelect.value || 'price';
 
@@ -264,12 +265,12 @@ function renderSortedResults(data, adults) {
 
   // Renderizar vuelos ordenados
   sortedFlights.forEach((flight) => {
-    const flightCard = createFlightCard(flight, adults);
+    const flightCard = createFlightCard(flight, adults, children);
     resultsList.appendChild(flightCard);
   });
 }
 
-function createFlightCard(flight, adults) {
+function createFlightCard(flight, adults, children) {
   const card = document.createElement('div');
   card.className = 'flight-card';
 
@@ -284,15 +285,16 @@ function createFlightCard(flight, adults) {
   const minutes = flight.durationMinutes % 60;
   const duration = `${hours}h ${minutes}m`;
 
-  // Emojis de adultos
+  // Emojis de adultos y niños
   const adultsEmojis = '👤'.repeat(adults);
+  const childrenEmojis = children > 0 ? '👶'.repeat(children) : '';
 
   // Header con precio y aerolíneas
   const header = document.createElement('div');
   header.className = 'flight-header';
   header.innerHTML = `
         <div>
-            <div class="flight-price">${price} <span class="flight-adults">${adultsEmojis}</span></div>
+            <div class="flight-price">${price} <span class="flight-passengers">${adultsEmojis}${childrenEmojis}</span></div>
             <div class="flight-airlines">Aerolíneas: ${flight.airlines.join(', ')}</div>
             <div class="flight-duration">Duración total: ${duration}</div>
         </div>
@@ -369,7 +371,8 @@ if (sortSelect) {
   sortSelect.addEventListener('change', function () {
     if (currentFlightData) {
       const adults = parseInt(document.getElementById('adults').value) || 1;
-      renderSortedResults(currentFlightData, adults);
+      const children = parseInt(document.getElementById('children').value) || 0;
+      renderSortedResults(currentFlightData, adults, children);
     }
   });
 }
