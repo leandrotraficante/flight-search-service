@@ -26,10 +26,11 @@
 ### 1.2 Propósito
 
 Este servicio está diseñado para:
-- Proporcionar una API REST para búsqueda de vuelos
-- Implementar un sistema de caché eficiente usando Redis
-- Preparar la infraestructura para integrar múltiples proveedores de vuelos (como Amadeus)
-- Ser escalable, mantenible y fácil de extender
+- Proporcionar una API REST para búsqueda de vuelos con integración completa con Amadeus
+- Implementar un sistema de caché eficiente usando Redis con TTL dinámico
+- Integrar patrones de resiliencia (Circuit Breaker, Retry, Timeout) para operaciones robustas
+- Proporcionar logging estructurado y manejo centralizado de errores
+- Ser escalable, mantenible y fácil de extender con múltiples proveedores de vuelos
 
 ### 1.3 Estado Actual
 
@@ -59,12 +60,6 @@ Este servicio está diseñado para:
   - ✅ Validación completa con `class-validator` y `class-transformer`
   - ✅ Soporte para arrays en query params (`includedAirlines`, `excludedAirlines`)
   - ✅ Cache inteligente con TTL dinámico según fecha del vuelo
-
-**Preparado para implementación futura:**
-- 🔄 Rate limiting con `@nestjs/throttler` (dependencia instalada)
-- 🔄 Health checks con `@nestjs/terminus` (dependencia instalada)
-- 🔄 API versioning
-- 🔄 Documentación Swagger/OpenAPI
 
 ---
 
@@ -204,17 +199,21 @@ SearchFlightsService/
 ├── src/                     # Código fuente
 │   ├── infra/              # Infraestructura técnica
 │   │   ├── cache/         # Módulo de caché Redis
-│   │   ├── logging/       # Sistema de logging (futuro)
-│   │   └── resilience/    # Patrones de resiliencia (futuro)
+│   │   ├── logging/       # Sistema de logging
+│   │   └── resilience/    # Patrones de resiliencia
 │   ├── modules/           # Módulos de negocio
-│   │   ├── search/        # Lógica de búsqueda (futuro)
+│   │   ├── search/        # Lógica de búsqueda 
 │   │   └── providers/     # Proveedores externos
-│   │       └── amadeus/   # Integración Amadeus (futuro)
+│   │       └── amadeus/   # Integración Amadeus 
 │   ├── controllers/       # Controladores REST
-│   ├── common/            # Utilidades compartidas (futuro)
-│   ├── config/            # Configuraciones (futuro)
+│   ├── common/            # Utilidades compartidas 
+│   ├── config/            # Configuraciones
 │   ├── app.module.ts      # Módulo raíz de la aplicación
 │   └── main.ts           # Punto de entrada de la aplicación
+├── public/                # Frontend estático (HTML, CSS, JS)
+│   ├── index.html        # Página principal del frontend
+│   ├── styles.css        # Estilos CSS
+│   └── script.js         # JavaScript del frontend
 ├── test/                  # Tests end-to-end
 ├── .gitignore            # Archivos ignorados por Git
 ├── docker-compose.yml    # Configuración Docker para Redis
@@ -238,9 +237,9 @@ Contiene todo el código TypeScript de la aplicación. Esta es la carpeta que de
 **Propósito**: Contiene toda la infraestructura técnica que soporta la aplicación.
 
 **Subcarpetas**:
-- `cache/`: Implementación del sistema de caché Redis
-- `logging/`: Sistema de logging con Winston (configuración implementada, servicio/interceptor/filter en desarrollo)
-- `resilience/`: Patrones de resiliencia como circuit breakers, retries (dependencias instaladas, implementación pendiente)
+- `cache/`: Sistema de caché Redis completo con métodos avanzados
+- `logging/`: Sistema de logging completo con Winston (LoggerService, LoggingInterceptor, GlobalExceptionFilter)
+- `resilience/`: Patrones de resiliencia completos (Circuit Breaker, Retry, Timeout) usando Cockatiel
 
 **Decisión**: Separar infraestructura permite cambiar implementaciones sin afectar la lógica de negocio.
 
@@ -294,24 +293,21 @@ Contiene todo el código TypeScript de la aplicación. Esta es la carpeta que de
 
 **Propósito**: Funciones, tipos y utilidades compartidas entre módulos.
 
-**Estado**: Preparado para implementación futura.
+**Contenido actual**:
+- `exceptions/`: Filtros globales de excepciones
+  - `global-exception.filter.ts`: Filtro global que captura y formatea todas las excepciones
 
-**Ejemplos de uso futuro**:
-- DTOs (Data Transfer Objects) compartidos
-- Validadores personalizados
-- Helpers y utilidades
-- Excepciones personalizadas
+**Decisión**: Centralizar utilidades compartidas facilita la reutilización y mantiene consistencia.
 
 #### `src/config/` - Configuraciones
 
 **Propósito**: Configuraciones centralizadas de la aplicación.
 
-**Estado**: Preparado para implementación futura.
+**Contenido actual**:
+- `config.module.ts`: Módulo de configuración de NestJS
+- `config.ts`: Servicio centralizado de configuración (`AppConfigService`) que lee todas las variables de entorno
 
-**Ejemplos de uso futuro**:
-- Configuraciones de proveedores externos
-- Configuraciones de rate limiting
-- Configuraciones de seguridad
+**Decisión**: Centralizar configuración facilita el acceso a variables de entorno y permite validación centralizada.
 
 #### `dist/` - Código Compilado
 
@@ -323,9 +319,11 @@ Contiene todo el código TypeScript de la aplicación. Esta es la carpeta que de
 
 **Propósito**: Contiene los tests end-to-end de la aplicación.
 
-**Contenido actual**:
-- `app.e2e-spec.ts`: Test básico de la aplicación
-- `jest-e2e.json`: Configuración de Jest para tests e2e
+**Estado actual**: 
+- Estructura de testing configurada (Jest, Supertest)
+- Tests pendientes de implementación
+
+**Nota**: Aunque la estructura de testing está lista, actualmente no hay tests implementados. Se recomienda agregar tests unitarios y e2e para mejorar la calidad del código.
 
 ---
 
@@ -447,107 +445,113 @@ export default tseslint.config(
 services:
   redis:                    # Servidor Redis
     image: redis:7          # Versión 7 de Redis
+    container_name: redis
     ports:
       - "6379:6379"         # Puerto estándar de Redis
     volumes:
       - redis:/data         # Persistencia de datos
 
-  redis-insight:            # Interfaz gráfica para Redis
+  redis_insight:            # Interfaz gráfica para Redis
     image: redis/redisinsight:latest
+    container_name: redis_insight
     ports:
-      - "8001:8001"         # Puerto web de Redis Insight
+      - "5540:5540"         # Puerto web de Redis Insight
     depends_on:
       - redis               # Espera a que Redis esté listo
+    restart: always         # Reinicia automáticamente si falla
 ```
 
 **Decisiones**:
 - **Redis 7**: Última versión estable
-- **Redis Insight**: Herramienta visual para inspeccionar datos en Redis
+- **Redis Insight**: Herramienta visual para inspeccionar datos en Redis (disponible en `http://localhost:5540`)
 - **Volúmenes**: Persistencia de datos entre reinicios del contenedor
+- **Container names**: Facilita identificar contenedores en `docker ps`
 
 ### 5.2 Archivos de Código Fuente
 
 #### `src/main.ts` - Punto de Entrada
 
-**Propósito**: Archivo que se ejecuta cuando inicias la aplicación. Es el punto de entrada principal.
+**Propósito**: Archivo que se ejecuta cuando inicias la aplicación. Es el punto de entrada principal y configura toda la aplicación.
 
-**Código completo**:
+**Funcionalidades implementadas**:
 
-```typescript
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+1. **Manejo de Errores Asíncronos**:
+   - `unhandledRejection`: Captura promesas rechazadas no manejadas
+   - `uncaughtException`: Captura excepciones síncronas no capturadas
+   - Ambos registran errores usando `LoggerService` para debugging
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  await app.listen(process.env.PORT ?? 3000);
-}
-bootstrap();
-```
+2. **Configuración CORS**:
+   - Habilita CORS para permitir peticiones desde navegadores
+   - Configurado para desarrollo (permite todos los orígenes)
+   - Soporta preflight requests (OPTIONS)
+   - Cache de preflight por 24 horas
 
-**Explicación línea por línea**:
+3. **Validación Global**:
+   - `ValidationPipe` configurado globalmente
+   - Transforma automáticamente tipos (string → number, etc.)
+   - Valida DTOs automáticamente en todos los endpoints
+   - Formatea errores de validación de forma clara y estructurada
+   - Rechaza propiedades no permitidas en los DTOs (seguridad)
 
-1. **`import { NestFactory }`**: Importa la clase que crea la aplicación NestJS
-2. **`import { AppModule }`**: Importa el módulo raíz de la aplicación
-3. **`async function bootstrap()`**: Función asíncrona que inicializa la app
-   - **`async`**: Permite usar `await` dentro de la función
-4. **`NestFactory.create(AppModule)`**: Crea una instancia de la aplicación usando el módulo raíz
-   - **`AppModule`**: Define qué módulos, controladores y servicios tiene la app
-5. **`app.listen(process.env.PORT ?? 3000)`**: Inicia el servidor HTTP
-   - **`process.env.PORT`**: Lee el puerto de variables de entorno
-   - **`?? 3000`**: Si no existe, usa el puerto 3000 por defecto
-   - **`await`**: Espera a que el servidor esté listo
-6. **`bootstrap()`**: Ejecuta la función de inicialización
+4. **Servir Archivos Estáticos**:
+   - Configurado para servir archivos desde `public/` (frontend)
+   - Los archivos están disponibles en la raíz: `/index.html`, `/styles.css`, `/script.js`
+   - Permite acceder al frontend directamente desde `http://localhost:3000/`
+
+5. **Inicialización del Servidor**:
+   - Lee el puerto desde `AppConfigService` (no directamente de `process.env`)
+   - Inicia el servidor HTTP en el puerto configurado
 
 **Decisiones**:
-- **Puerto configurable**: Permite cambiar el puerto sin modificar código
-- **3000 por defecto**: Puerto estándar para desarrollo
-- **Función separada**: Facilita testing y permite agregar configuración adicional (CORS, validación, etc.)
+- **Manejo de errores asíncronos**: Previene crashes silenciosos y facilita debugging
+- **CORS habilitado**: Necesario para desarrollo frontend y pruebas desde navegador
+- **Validación global**: Asegura que todos los endpoints validen automáticamente
+- **Formato de errores personalizado**: Mejor experiencia para consumidores de la API
+- **Configuración centralizada**: Usa `AppConfigService` en lugar de `process.env` directamente
+- **Archivos estáticos integrados**: Frontend y backend en un solo servidor para simplicidad
 
 #### `src/app.module.ts` - Módulo Raíz
 
 **Propósito**: Define la estructura completa de la aplicación. Es el "corazón" que conecta todos los módulos.
 
-**Código completo**:
+**Módulos importados**:
 
-```typescript
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { CacheModule } from './infra/cache/cache.module';
-import { CacheDebugController } from './controllers/cache-debug.controller';
-import { CacheService } from './infra/cache/cache.service';
+1. **`ConfigModule.forRoot({ isGlobal: true })`**: 
+   - Carga variables de entorno desde `.env`
+   - `isGlobal: true` hace que esté disponible en todos los módulos sin importarlo
 
-@Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
-    CacheModule,
-  ],
-  controllers: [CacheDebugController],
-  providers: [CacheService],
-})
-export class AppModule {}
-```
+2. **`AppConfigModule`**: 
+   - Módulo que provee `AppConfigService` para acceso centralizado a configuración
 
-**Explicación línea por línea**:
+3. **`CacheModule`**: 
+   - Módulo que provee el cliente de Redis y `CacheService`
 
-1. **`@Module({ ... })`**: Decorador que marca la clase como un módulo de NestJS
-   - **Decorador**: Función especial que modifica la clase en tiempo de ejecución
-2. **`imports: [...]`**: Lista de módulos que este módulo necesita
-   - **`ConfigModule.forRoot({ isGlobal: true })`**: 
-     - Carga variables de entorno desde `.env`
-     - `isGlobal: true` hace que esté disponible en todos los módulos sin importarlo
-   - **`CacheModule`**: Módulo que provee el cliente de Redis
-3. **`controllers: [CacheDebugController]`**: Controladores que manejan peticiones HTTP
-   - **`CacheDebugController`**: Define las rutas `/debug/cache/*`
-4. **`providers: [CacheService]`**: Servicios disponibles en este módulo
-   - **`CacheService`**: Servicio que encapsula la lógica del caché
-5. **`export class AppModule {}`**: Clase vacía porque toda la configuración está en el decorador
+4. **`LoggerModule`**: 
+   - Módulo que provee `LoggerService`, `LoggingInterceptor` y `GlobalExceptionFilter`
+   - Registra automáticamente el interceptor y el filtro globalmente
+
+5. **`ResilienceModule`**: 
+   - Módulo que provee `ResilienceService` para aplicar patrones de resiliencia
+
+6. **`AmadeusModule`**: 
+   - Módulo que provee la integración con la API de Amadeus
+   - Exporta `AmadeusService` que implementa `IFlightProvider`
+
+7. **`SearchModule`**: 
+   - Módulo principal que expone el endpoint `/search/flights`
+   - Internamente usa `AmadeusModule` para buscar vuelos
+
+**Controladores**:
+- `CacheDebugController`: Endpoints de debug del caché (`/debug/cache/*`)
+
+**Providers**:
+- `CacheService`: Redundante (ya está en `CacheModule`), puede removerse
 
 **Decisiones**:
 - **ConfigModule global**: Evita importarlo en cada módulo
-- **CacheService como provider**: Permite inyectarlo en controladores
-- **Separación de módulos**: `CacheModule` maneja la infraestructura, `AppModule` orquesta todo
+- **Módulos separados**: Cada funcionalidad en su propio módulo facilita mantenimiento
+- **LoggerModule global**: Interceptor y filtro se aplican automáticamente a toda la app
+- **Separación de responsabilidades**: `SearchModule` orquesta, `AmadeusModule` provee datos
 
 ### 5.3 Módulo de Logging (`src/infra/logging/`)
 
@@ -578,17 +582,53 @@ export class AppModule {}
 - **Archivos separados**: Errores en archivo dedicado para fácil acceso
 - **Nivel debug en dev**: Más información durante desarrollo
 
-**Estado**: ✅ Configuración completa. Pendiente: servicio, interceptor y filter de excepciones.
+**Estado**: ✅ Configuración completa implementada.
 
 #### `logger.module.ts` - Módulo de Logging
 
 **Propósito**: Define el módulo de logging de NestJS.
 
-**Estado**: Estructura creada, pendiente de implementación completa con providers y exports.
+**Funcionalidades**:
+- Provee `LoggerService` como servicio inyectable
+- Registra `LoggingInterceptor` globalmente (intercepta todas las requests/responses)
+- Registra `GlobalExceptionFilter` globalmente (captura todas las excepciones)
 
-#### `logger.service.ts`, `logger.interceptor.ts`, `global-exception.filter.ts`
+**Estado**: ✅ Completamente implementado y funcional.
 
-**Estado**: Archivos creados, pendientes de implementación.
+#### `logger.service.ts` - Servicio de Logging
+
+**Propósito**: Servicio centralizado de logging que encapsula Winston.
+
+**Características**:
+- Métodos: `debug()`, `info()`, `warn()`, `error()`
+- Soporte para contexto y metadatos estructurados
+- Formato automático según entorno (legible en dev, JSON en prod)
+
+**Estado**: ✅ Completamente implementado.
+
+#### `logger.interceptor.ts` - Interceptor de Logging
+
+**Propósito**: Intercepta todas las peticiones HTTP y registra información de requests y responses.
+
+**Características**:
+- Registra método, URL, query params, body, headers
+- Registra tiempo de respuesta
+- Registra status code y respuesta
+- Maneja errores de forma segura
+
+**Estado**: ✅ Completamente implementado y registrado globalmente.
+
+#### `global-exception.filter.ts` - Filtro Global de Excepciones
+
+**Propósito**: Captura todas las excepciones no manejadas y las formatea de forma consistente.
+
+**Características**:
+- Formatea errores de validación (400 Bad Request)
+- Formatea errores de servidor (500 Internal Server Error)
+- Registra errores usando `LoggerService`
+- Retorna respuestas JSON estructuradas
+
+**Estado**: ✅ Completamente implementado y registrado globalmente.
 
 ### 5.4 Módulo de Caché (`src/infra/cache/`)
 
@@ -1074,35 +1114,46 @@ export class CacheDebugController {
 
 ### 5.6 Tests
 
-#### `test/app.e2e-spec.ts`
+**Estado actual**: La estructura de testing está configurada (Jest, Supertest, ts-jest), pero actualmente no hay tests implementados.
 
-**Propósito**: Test end-to-end básico de la aplicación.
+**Configuración disponible**:
+- Jest configurado en `package.json`
+- Supertest para tests e2e
+- `jest-e2e.json` para configuración de tests end-to-end
+- Scripts disponibles: `test`, `test:watch`, `test:cov`, `test:e2e`
 
-**Código**:
+**Recomendaciones para implementar tests**:
+
+1. **Tests unitarios** (`.spec.ts` junto a cada archivo):
+   - `CacheService`: Probar métodos get, set, delete, wrap
+   - `SearchService`: Probar lógica de búsqueda y cache
+   - `AmadeusService`: Mockear cliente HTTP y probar transformaciones
+   - `ResilienceService`: Probar creación y ejecución de políticas
+
+2. **Tests e2e** (en `test/`):
+   - `search.e2e-spec.ts`: Probar endpoint `/search/flights` con diferentes parámetros
+   - `cache-debug.e2e-spec.ts`: Probar endpoints de debug del cache
+   - Validación de DTOs, manejo de errores, integración con Redis
+
+**Ejemplo de estructura de test unitario**:
 
 ```typescript
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
-
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+// cache.service.spec.ts
+describe('CacheService', () => {
+  let service: CacheService;
+  let mockClient: jest.Mocked<CacheClient>;
 
   beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
+    // Setup mocks y providers
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
+  it('should get value from cache', async () => {
+    // Test implementation
+  });
+});
+```
+
+**Nota**: Los tests son importantes para mantener la calidad del código y facilitar refactorizaciones futuras
       .expect('Hello World!');
   });
 });
@@ -1527,7 +1578,24 @@ Una vez iniciada, deberías ver en la consola:
 
 La aplicación estará disponible en: **`http://localhost:3000`** (o el puerto que configuraste en `PORT`)
 
-#### Probar el Endpoint Principal
+#### Acceder al Frontend
+
+El proyecto incluye un frontend básico integrado que se sirve automáticamente desde NestJS:
+
+1. **Abre tu navegador** y ve a: **`http://localhost:3000/`**
+2. Verás un formulario de búsqueda de vuelos con:
+   - Formulario compacto a la izquierda
+   - Área de resultados a la derecha (se llena después de buscar)
+   - Validación de fechas (salida >= hoy, regreso > salida)
+   - Campos de origen/destino en mayúsculas automáticas
+   - Selector de moneda (USD/EUR)
+   - Visualización de resultados con emojis de personitas según cantidad de adultos
+
+**Nota**: El frontend es básico y está diseñado solo para probar la funcionalidad del backend. No requiere configuración adicional ni servidor separado.
+
+#### Probar el Endpoint Principal (API)
+
+También puedes probar la API directamente con `curl`:
 
 ```bash
 # Búsqueda simple de vuelos

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Flights Search Service - Test Frontend" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>Flights Search Service</title>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Flight Search</h1>
+        </header>
+
+        <main class="main-layout">
+            <aside class="sidebar">
+                <section class="search-form">
+                    <form id="searchForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="origin">Origen (IATA):</label>
+                            <input 
+                                type="text" 
+                                id="origin" 
+                                name="origin" 
+                                placeholder="Ejemplo: JFK" 
+                                maxlength="3"
+                                pattern="[A-Z]{3}"
+                                required 
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="destination">Destino (IATA):</label>
+                            <input 
+                                type="text" 
+                                id="destination" 
+                                name="destination" 
+                                placeholder="Ejemplo: LAX" 
+                                maxlength="3"
+                                pattern="[A-Z]{3}"
+                                required 
+                            />
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="departureDate">Fecha de salida:</label>
+                            <input 
+                                type="date" 
+                                id="departureDate" 
+                                name="departureDate" 
+                                required 
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="returnDate">Fecha de regreso (opcional):</label>
+                            <input 
+                                type="date" 
+                                id="returnDate" 
+                                name="returnDate" 
+                            />
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="adults">Adultos:</label>
+                            <input 
+                                type="number" 
+                                id="adults" 
+                                name="adults" 
+                                value="1" 
+                                min="1" 
+                                max="9" 
+                                required 
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="children">Niños:</label>
+                            <input 
+                                type="number" 
+                                id="children" 
+                                name="children" 
+                                value="0" 
+                                min="0" 
+                                max="9" 
+                            />
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="travelClass">Clase:</label>
+                            <select id="travelClass" name="travelClass">
+                                <option value="">Todas</option>
+                                <option value="ECONOMY">Economy</option>
+                                <option value="PREMIUM_ECONOMY">Premium Economy</option>
+                                <option value="BUSINESS">Business</option>
+                                <option value="FIRST">First</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="currency">Moneda:</label>
+                            <select id="currency" name="currency">
+                                <option value="">Por defecto</option>
+                                <option value="USD">USD - Dólar estadounidense</option>
+                                <option value="EUR">EUR - Euro</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="includedAirlines">Aerolíneas incluidas:</label>
+                            <input 
+                                type="text" 
+                                id="includedAirlines" 
+                                name="includedAirlines" 
+                                placeholder="Ejemplo: AA, DL" 
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="excludedAirlines">Aerolíneas excluidas:</label>
+                            <input 
+                                type="text" 
+                                id="excludedAirlines" 
+                                name="excludedAirlines" 
+                                placeholder="Ejemplo: UA" 
+                            />
+                        </div>
+                    </div>
+
+                        <button type="submit" id="submitBtn">Buscar Vuelos</button>
+                    </form>
+                </section>
+            </aside>
+
+            <div class="content-area">
+                <div id="loading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Buscando vuelos...</p>
+                </div>
+
+                <div id="error" class="error" style="display: none;"></div>
+
+                <!-- Resultados -->
+                <section id="results" class="results" style="display: none;">
+                    <h2 id="resultsTitle"></h2>
+                    <div id="resultsList"></div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

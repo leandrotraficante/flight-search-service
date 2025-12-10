@@ -1,0 +1,333 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 10px;
+    margin: 0;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 30px);
+    max-height: 100vh;
+}
+
+header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+
+header h1 {
+    font-size: 1.8em;
+    margin: 0;
+}
+
+.subtitle {
+    opacity: 0.9;
+    font-size: 1.1em;
+}
+
+main.main-layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    padding: 0;
+}
+
+/* Sidebar - Formulario a la izquierda */
+aside.sidebar {
+    width: 320px;
+    min-width: 320px;
+    background: #f8f9fa;
+    border-right: 2px solid #e0e0e0;
+    padding: 20px;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.search-form {
+    margin-bottom: 0;
+}
+
+.form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #555;
+    font-size: 0.9em;
+}
+
+.form-group input,
+.form-group select {
+    padding: 8px;
+    border: 2px solid #e0e0e0;
+    border-radius: 4px;
+    font-size: 0.95em;
+    transition: border-color 0.3s;
+}
+
+/* Wrapper para input de adultos con emoji */
+/* Placeholders más claros (tono claro) */
+.form-group input::placeholder {
+    color: #bbb;
+    opacity: 0.7;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+/* Campos de origen y destino siempre en mayúsculas */
+#origin,
+#destination {
+    text-transform: uppercase;
+}
+
+button[type="submit"] {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    width: 100%;
+    margin-top: 8px;
+}
+
+button[type="submit"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+button[type="submit"]:active {
+    transform: translateY(0);
+}
+
+button[type="submit"]:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Loading */
+.loading {
+    text-align: center;
+    padding: 40px;
+}
+
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Content Area - Resultados a la derecha */
+.content-area {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    min-width: 0;
+}
+
+/* Error */
+.error {
+    background: #fee;
+    border: 2px solid #fcc;
+    color: #c33;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 20px 0;
+}
+
+/* Results */
+.results {
+    margin-top: 0;
+}
+
+.results h2 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.flight-card {
+    background: #f9f9f9;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 15px;
+    transition: box-shadow 0.3s;
+}
+
+.flight-card:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.flight-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.flight-price {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #667eea;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.flight-adults {
+    font-size: 0.7em;
+    font-weight: normal;
+    opacity: 0.8;
+}
+
+.flight-airlines {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.flight-duration {
+    color: #888;
+    font-size: 0.9em;
+    margin-top: 5px;
+}
+
+.segment {
+    background: white;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    border-left: 4px solid #667eea;
+}
+
+.segment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.segment-route {
+    font-weight: 600;
+    font-size: 1.1em;
+}
+
+.segment-airline {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.segment-times {
+    display: flex;
+    justify-content: space-between;
+    color: #555;
+    font-size: 0.95em;
+}
+
+.segment-time {
+    display: flex;
+    flex-direction: column;
+}
+
+.time {
+    font-weight: 600;
+    color: #333;
+}
+
+.airport {
+    color: #888;
+    font-size: 0.85em;
+}
+
+.no-results {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+    font-size: 1.1em;
+}
+
+/* Responsive - Móvil */
+@media (max-width: 768px) {
+    .container {
+        height: auto;
+        max-height: none;
+    }
+    
+    main.main-layout {
+        flex-direction: column;
+    }
+    
+    aside.sidebar {
+        width: 100%;
+        min-width: 100%;
+        border-right: none;
+        border-bottom: 2px solid #e0e0e0;
+        max-height: 60vh;
+    }
+    
+    .content-area {
+        min-height: 40vh;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+    
+    header h1 {
+        font-size: 1.5em;
+    }
+    
+    .flight-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .flight-price {
+        margin-top: 10px;
+    }
+}
