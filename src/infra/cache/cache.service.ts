@@ -122,8 +122,8 @@ export class CacheService {
   // Eliminar manualmente keys --> Útil para invalidar cache cuando los datos cambian en la fuente original
   async delete(key: string): Promise<void> {
     try {
-    await this.client.del(key); // del() elimina la key de Redis, retorna el número de keys eliminadas
-    this.logger.debug(`DEL → ${key}`); // Logging para confirmar la eliminación
+      await this.client.del(key); // del() elimina la key de Redis, retorna el número de keys eliminadas
+      this.logger.debug(`DEL → ${key}`); // Logging para confirmar la eliminación
     } catch (err) {
       // Si falla la eliminación, logueamos pero no lanzamos excepción, Esto permite que la app continúe aunque el cache falle
       this.logger.error(
