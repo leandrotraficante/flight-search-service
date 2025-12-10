@@ -1,10 +1,26 @@
 {
   "name": "flights-search-service",
   "version": "0.0.1",
-  "description": "",
-  "author": "",
+  "description": "Flight search service with Amadeus API integration, Redis caching, and resilience patterns. Built with NestJS and TypeScript.",
+  "author": "Leandro Traficante",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/leandrotraficante/flight-search-service"
+  },
+  "keywords": [
+    "nestjs",
+    "typescript",
+    "flight-search",
+    "amadeus-api",
+    "redis",
+    "cache",
+    "resilience",
+    "circuit-breaker",
+    "retry",
+    "rest-api"
+  ],
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -21,11 +37,15 @@
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "axios": "^1.13.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
     "cockatiel": "^3.2.1",
     "ioredis": "^5.8.2",
+    "nest-winston": "^1.10.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "winston": "^3.18.3"
