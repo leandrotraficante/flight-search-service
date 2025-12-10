@@ -1,0 +1,20 @@
+services:
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis:/data
+    
+  redis_insight:
+    image: redis/redisinsight:latest
+    container_name: redis_insight
+    ports:
+      - '5540:5540' # Puerto para la interfaz de RedisInsight
+    depends_on:
+      - redis # Asegura que el servidor Redis inicie primero
+    restart: always
+
+volumes:
+  redis:
