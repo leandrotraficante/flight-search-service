@@ -11,7 +11,7 @@ import { LoggerService } from './infra/logging/logger.service';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  
+
   // Servir archivos estáticos desde la carpeta public/
   app.useStaticAssets(join(__dirname, '..', 'public'), {
     prefix: '/', // Los archivos estarán en la raíz: /index.html, /styles.css, /script.js

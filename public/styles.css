@@ -184,8 +184,41 @@ button[type="submit"]:disabled {
 }
 
 .results h2 {
-    margin-bottom: 20px;
+    margin-bottom: 15px;
     color: #333;
+}
+
+.sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+}
+
+.sort-controls label {
+    font-weight: 600;
+    color: #555;
+    font-size: 0.95em;
+}
+
+.sort-controls select {
+    padding: 8px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 4px;
+    font-size: 0.95em;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.3s;
+    min-width: 220px;
+}
+
+.sort-controls select:focus {
+    outline: none;
+    border-color: #667eea;
 }
 
 .flight-card {
@@ -219,7 +252,7 @@ button[type="submit"]:disabled {
     gap: 10px;
 }
 
-.flight-adults {
+.flight-passengers {
     font-size: 0.7em;
     font-weight: normal;
     opacity: 0.8;
@@ -234,6 +267,45 @@ button[type="submit"]:disabled {
     color: #888;
     font-size: 0.9em;
     margin-top: 5px;
+}
+
+/* Secciones de ida y vuelta */
+.flight-section {
+    margin-top: 20px;
+    margin-bottom: 15px;
+}
+
+.flight-section:first-of-type {
+    margin-top: 0;
+}
+
+.section-title {
+    font-size: 1.1em;
+    font-weight: 700;
+    color: #667eea;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.outbound-section .section-title {
+    color: #667eea;
+    border-bottom-color: #667eea;
+}
+
+.return-section {
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 3px dashed #d0d0d0;
+}
+
+.return-section .section-title {
+    color: #764ba2;
+    border-bottom-color: #764ba2;
+}
+
+.return-section .segment {
+    border-left-color: #764ba2;
 }
 
 .segment {

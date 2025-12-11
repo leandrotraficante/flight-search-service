@@ -122,7 +122,6 @@ Proveedor Externo (API, BD, etc.)
 3. **Dependency Injection**: Permite desacoplar componentes y facilitar testing
 4. **Decoradores**: Simplifica la definición de rutas, validaciones y middleware
 5. **Ecosistema maduro**: Gran comunidad y muchas librerías compatibles
-6. **Inspirado en Angular**: Si conoces Angular, NestJS será familiar
 
 ### 3.2 Separación de Carpetas
 
@@ -1828,6 +1827,11 @@ NODE_ENV=production pnpm run start:dev
 **Para volver a desarrollo:**
 Simplemente cambia `NODE_ENV=development` en tu `.env` o reinicia sin la variable de entorno.
 
+<<<<<<< HEAD
+=======
+=======
+
+>>>>>>> origin/main
 ### 8.6 Características Avanzadas del Cache
 
 #### Eliminación por Patrón
