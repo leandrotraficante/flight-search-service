@@ -122,7 +122,6 @@ Proveedor Externo (API, BD, etc.)
 3. **Dependency Injection**: Permite desacoplar componentes y facilitar testing
 4. **Decoradores**: Simplifica la definición de rutas, validaciones y middleware
 5. **Ecosistema maduro**: Gran comunidad y muchas librerías compatibles
-6. **Inspirado en Angular**: Si conoces Angular, NestJS será familiar
 
 ### 3.2 Separación de Carpetas
 
