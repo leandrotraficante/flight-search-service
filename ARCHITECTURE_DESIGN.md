@@ -1,9 +1,6 @@
 # 🏗️ Flight Search Service - Diseño Arquitectónico
 
 > Documento de diseño conceptual, arquitectura y decisiones técnicas fundamentadas.  
-> **Sin código** — Solo conceptos, estructura, patrones y recursos oficiales.
-
----
 
 ## 📋 Índice
 
@@ -16,9 +13,8 @@
 7. [Normalización de DTOs](#normalización-de-dtos)
 8. [API Versioning](#api-versioning)
 9. [Health Checks](#health-checks)
-10. [Testing Strategy](#testing-strategy)
-11. [Consideraciones de Costos y Límites](#consideraciones-de-costos-y-límites)
-12. [Recursos Oficiales](#recursos-oficiales)
+10. [Consideraciones de Costos y Límites](#consideraciones-de-costos-y-límites)
+11. [Recursos Oficiales](#recursos-oficiales)
 
 ---
 
@@ -58,22 +54,28 @@ Controller → Service → Adapter (Amadeus) → External API
 
 ## 📦 Estructura de Módulos
 
-### Organización Propuesta
+### Organización Actual
 
 ```
 src/
+├── app.module.ts                   # Módulo raíz NestJS
+├── main.ts                         # Bootstrap de la aplicación
 ├── infra/                          # Infraestructura compartida
-│   ├── cache/                      # ✅ Ya implementado
-│   ├── logging/                    # ✅ Ya implementado
-│   └── resilience/                 # ⚠️ Por diseñar
+│   ├── cache/                      
+│   ├── logging/                    
+│   └── resilience/                 
 │       ├── resilience.module.ts
-│       ├── circuit-breaker.service.ts
-│       ├── retry.service.ts
-│       ├── timeout.service.ts
-│       └── resilience.types.ts
+│       ├── resilience.service.ts
+│       ├── resilience.config.ts
+│       ├── resilience.types.ts
+│       └── policies/
+│           ├── circuit-breaker.policy.ts
+│           ├── retry.policy.ts
+│           ├── timeout.policy.ts
+│           └── policy-composer.ts
 │
 ├── modules/
-│   ├── search/                     # ✅ Módulo principal de búsqueda (COMPLETO)
+│   ├── search/                     # Módulo principal de búsqueda
 │   │   ├── search.module.ts
 │   │   ├── search.controller.ts
 │   │   ├── search.service.ts
@@ -89,7 +91,7 @@ src/
 │   │       └── flight-provider.interface.ts
 │   │
 │   └── providers/
-│       └── amadeus/                # ✅ Adapter de Amadeus (COMPLETO)
+│       └── amadeus/                # Adapter de Amadeus
 │           ├── amadeus.module.ts
 │           ├── amadeus.service.ts
 │           ├── amadeus-token.service.ts
@@ -104,12 +106,13 @@ src/
 │
 ├── common/                         # Utilidades compartidas
 │   └── exceptions/
-│       └── global-exception.filter.ts  # ✅ Implementado
+│       └── global-exception.filter.ts
 ├── controllers/                    # Controladores compartidos
-│   └── cache-debug.controller.ts  # ✅ Endpoints de debug de cache
+│   └── cache-debug.controller.ts   # Endpoints de debug de cache
 │
 └── config/                         # Configuración centralizada
-    └── app.config.ts
+    ├── config.module.ts
+    └── config.ts (AppConfigService)
 ```
 
 ### Responsabilidades por Módulo
@@ -142,17 +145,17 @@ La resiliencia permite que el sistema **siga funcionando** (aunque degradado) cu
 #### 1. Circuit Breaker (Cockatiel)
 
 **¿Qué es?**
-Patrón que "abre" el circuito cuando hay demasiados fallos, evitando llamadas inútiles y dando tiempo a que el servicio externo se recupere.
+Patrón que "abre" (interrumpe) el circuito cuando hay demasiados fallos, evitando llamadas inútiles y dando tiempo a que el servicio externo se recupere.
 
 **Estados:**
 - **CLOSED**: Normal, las llamadas pasan
 - **OPEN**: Demasiados fallos, rechaza llamadas inmediatamente
 - **HALF_OPEN**: Estado de prueba, permite algunas llamadas para ver si se recuperó
 
-**Configuración sugerida:**
-- **Failure Threshold**: 5 fallos consecutivos
-- **Timeout**: 30 segundos antes de intentar HALF_OPEN
-- **Success Threshold**: 2 éxitos para volver a CLOSED
+**Configuración por defecto (actual, configurable por env):**
+- **Failure Threshold**: 3 fallos consecutivos (`RES_CB_FAILURE_THRESHOLD`, default 3)
+- **Half-Open After**: 10 segundos antes de intentar HALF_OPEN (`RES_CB_HALFOPEN_MS`, default 10000)
+- **Success Threshold**: 1 éxito para volver a CLOSED (`RES_CB_SUCCESS_THRESHOLD`, default 1)
 
 **Recursos:**
 - Cockatiel Docs: https://github.com/connor4312/cockatiel
@@ -163,10 +166,10 @@ Patrón que "abre" el circuito cuando hay demasiados fallos, evitando llamadas i
 **¿Qué es?**
 Reintenta operaciones fallidas, pero espera cada vez más tiempo entre intentos.
 
-**Estrategia sugerida:**
-- **Max Attempts**: 3 intentos
-- **Initial Delay**: 500ms
-- **Max Delay**: 5 segundos
+**Estrategia por defecto (actual, configurable por env):**
+- **Max Attempts**: 2 intentos (`RES_RETRY_ATTEMPTS`, default 2)
+- **Initial Delay**: 200ms (`RES_RETRY_BASE_MS`, default 200)
+- **Max Delay**: 2000ms (configurada internamente en `createRetryPolicy`)
 - **Multiplier**: 2x (exponencial)
 - **Solo retry en**: Errores de red, timeouts, 5xx (NO en 4xx)
 
@@ -186,10 +189,10 @@ Intento 4: falla → lanza error
 **¿Qué es?**
 Límite máximo de tiempo para una operación. Si se excede, se cancela.
 
-**Configuración sugerida:**
-- **Amadeus API Call**: 10 segundos
-- **Cache Operations**: 2 segundos
-- **Total Request Timeout**: 15 segundos
+**Configuración por defecto (actual, configurable por env):**
+- **Operaciones externas (Amadeus, etc.)**: 1 segundo (`RES_TIMEOUT_MS`, default 1000)
+
+> Todos estos valores se pueden ajustar vía variables de entorno sin cambiar código.
 
 **Recursos:**
 - Cockatiel Timeout: https://github.com/connor4312/cockatiel#timeout
@@ -260,9 +263,8 @@ Límite máximo de tiempo para una operación. Si se excede, se cancela.
 }
 ```
 
-**Tu DTO normalizado:**
+**DTO normalizado:**
 ```typescript
-// Concepto, no código
 interface Flight {
   id: string
   price: { amount: number, currency: string }
@@ -272,7 +274,7 @@ interface Flight {
 }
 ```
 
-**Ventaja:** Si mañana agregas Skyscanner, solo cambias el mapper, no el resto del sistema.
+**Ventaja:** Si mañana agregamos Skyscanner, solo cambia   el mapper, no el resto del sistema.
 
 ---
 
@@ -299,7 +301,6 @@ interface Flight {
 #### ❌ NO Cachear:
 - Búsquedas con fecha de hoy (muy dinámicas)
 - Respuestas de error (4xx, 5xx)
-- Datos sensibles (aunque no aplica aquí)
 
 ### Estrategia de Keys
 
@@ -347,15 +348,15 @@ interface Flight {
 
 ---
 
-## 🚦 Rate Limiting
+## 🚦 Rate Limiting (diseño conceptual, **pendiente de implementación**)
 
 ### Dos Niveles de Rate Limiting
 
-#### 1. Rate Limiting de Tu API (Proteger tu servicio)
+#### 1. Rate Limiting en la API para Proteger el servicio - 
 
 **Objetivo:** Evitar abusos, proteger recursos.
 
-**Configuración sugerida:**
+**Configuración sugerida (aún no implementada):**
 - **Global**: 100 requests/minuto por IP
 - **Por endpoint**: 20 requests/minuto por IP en `/search`
 - **Burst**: Permitir 5 requests rápidas, luego throttling
@@ -367,11 +368,11 @@ interface Flight {
 **Recursos:**
 - NestJS Throttler: https://docs.nestjs.com/security/rate-limiting
 
-#### 2. Rate Limiting de Amadeus (Respetar límites externos)
+#### 2. Rate Limiting de Amadeus para respetar límites externos - 
 
 **Objetivo:** No exceder los límites de Amadeus (evitar 429).
 
-**Estrategia:**
+**Estrategia (aún no implementada):**
 - **Queue**: Cola de requests pendientes
 - **Token Bucket**: Permitir N requests por ventana de tiempo
 - **Backoff automático**: Si recibes 429, esperar más tiempo
@@ -402,7 +403,7 @@ Request → Rate Limiter (tu API) → Service → Amadeus Rate Limiter → Amade
 
 **Tres capas:**
 
-1. **Request DTOs** (lo que recibe tu API)
+1. **Request DTOs** (lo que recibe la API)
    - `SearchFlightsRequestDto`
    - Validación con `class-validator`
 
@@ -444,11 +445,11 @@ Amadeus Response → AmadeusFlightOfferDto → Mapper → FlightDto → Response
 
 ---
 
-## 🔢 API Versioning
+## 🔢 API Versioning (diseño conceptual, **pendiente de implementación**)
 
 ### Estrategia: Versionado por URL
 
-**Estructura:**
+**Estructura propuesta:**
 ```
 /api/v1/search/flights
 /api/v1/health
@@ -473,9 +474,9 @@ src/
 │   └── v2/  (futuro)
 ```
 
-**Routing:**
-- Prefijo global: `/api/v1`
-- Controllers dentro de `v1/` automáticamente tienen el prefijo
+**Routing (diseñado, pendiente):**
+- Prefijo global esperado: `/api/v1`
+- Controllers dentro de `v1/` tendrían automáticamente el prefijo cuando se implemente
 
 **Migración futura:**
 - `v1` sigue funcionando
@@ -487,7 +488,7 @@ src/
 
 ---
 
-## 🏥 Health Checks
+## 🏥 Health Checks (diseño conceptual, **pendiente de implementación**)
 
 ### Endpoints Propuestos
 
@@ -524,58 +525,6 @@ src/
 
 **Recursos:**
 - NestJS Terminus: https://docs.nestjs.com/recipes/terminus
-
----
-
-## 🧪 Testing Strategy
-
-### Niveles de Testing
-
-#### 1. Unit Tests
-**Objetivo:** Probar lógica aislada.
-
-**Qué testear:**
-- Mappers (Amadeus → DTO normalizado)
-- Servicios de dominio (lógica de negocio)
-- Utilidades (composeKey, formatters)
-
-**Mocks:**
-- Redis client
-- HTTP client (Axios)
-- Logger
-
-#### 2. Integration Tests
-**Objetivo:** Probar interacción entre componentes.
-
-**Qué testear:**
-- Flujo completo: Controller → Service → Adapter
-- Cache integration (Redis real o mock)
-- Circuit Breaker con fallos simulados
-
-**Setup:**
-- Redis de test (docker-compose.test.yml)
-- Mock de Amadeus (nock o similar)
-
-#### 3. E2E Tests
-**Objetivo:** Probar el sistema completo.
-
-**Qué testear:**
-- Endpoints HTTP reales
-- Flujo completo con Redis real
-- Respuestas válidas
-
-**Setup:**
-- Test database (Redis)
-- Mock de Amadeus (no llamadas reales en tests)
-
-### Cobertura Objetivo
-
-- **Unit**: >80%
-- **Integration**: >70%
-- **E2E**: Casos críticos (happy path, errores comunes)
-
-**Recursos:**
-- NestJS Testing: https://docs.nestjs.com/fundamentals/testing
 
 ---
 
@@ -668,10 +617,10 @@ src/
 6. ✅ Soporte para arrays en query params
 
 ### Fase 4: API y Controllers
-1. Implementar versioning (`/api/v1`)
+1. Implementar versioning (`/api/v1`) ✅ Diseño definido, implementación pendiente
 2. ✅ Crear endpoints de búsqueda (`/search/flights`)
 3. ✅ Agregar validación de DTOs
-4. Implementar rate limiting
+4. Implementar rate limiting (API propia + Amadeus) ✅ Diseño definido, implementación pendiente
 
 ### Fase 5: Health Checks y Observabilidad
 1. Implementar `/health` endpoints
@@ -689,11 +638,11 @@ src/
 
 ### Decisiones Técnicas Confirmadas
 ✅ Modular por feature (NestJS)  
-✅ Circuit Breaker + Retry con backoff  
-✅ Rate limiting con `@nestjs/throttler`  
-✅ Cache con TTL variable  
-✅ DTOs normalizados  
-✅ Versionado por URL  
+✅ Circuit Breaker + Retry + Timeout con Cockatiel (configurable por env)  
+✅ Cache con TTL variable y utilidades avanzadas (`wrap`, `deleteByPattern`, métricas)  
+✅ DTOs normalizados y mappers entre proveedor (Amadeus) y dominio de búsqueda  
+🔜 Rate limiting con `@nestjs/throttler` (diseñado, pendiente de implementación)  
+🔜 Versionado por URL (`/api/v1`) (diseñado, pendiente de implementación)  
 
 ### Principios a Mantener
 - **Fail-Safe**: El sistema debe degradarse, no caer

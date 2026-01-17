@@ -172,8 +172,8 @@ form.addEventListener('submit', async (e) => {
     params.append('excludedAirlines', excludedAirlines);
   }
 
-  // Agregar maxResults por defecto (20) - manejado internamente
-  params.append('maxResults', '20');
+  // Agregar maxResults por defecto (50) - manejado internamente
+  params.append('maxResults', '50');
 
   try {
     const url = `https://flight-search-service-hlt3.onrender.com/search/flights?${params.toString()}`;
@@ -314,20 +314,20 @@ function createFlightCard(flight, adults, children) {
     // Encontrar el punto de división entre ida y vuelta
     // Los segmentos de ida terminan en el destino, los de vuelta empiezan desde el destino
     let returnStartIndex = -1;
-    
+
     // Buscar el primer segmento que:
     // 1. Sale del destino (vuelo de regreso)
     // 2. O tiene una fecha de salida >= fecha de regreso del formulario
     for (let i = 0; i < flight.segments.length; i++) {
       const segment = flight.segments[i];
       const segmentDate = new Date(segment.departure.time).toISOString().split('T')[0];
-      
+
       // Si el segmento sale del destino y la fecha es >= fecha de regreso, es vuelo de vuelta
       if (segment.departure.airport === destination && segmentDate >= returnDate) {
         returnStartIndex = i;
         break;
       }
-      
+
       // Alternativa: si la fecha del segmento es >= fecha de regreso, probablemente es vuelo de vuelta
       if (segmentDate >= returnDate) {
         returnStartIndex = i;

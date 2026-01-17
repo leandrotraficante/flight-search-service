@@ -51,7 +51,7 @@ Este servicio está diseñado para:
   - ✅ Mappers para normalización de datos
   - ✅ Servicio principal de búsqueda de vuelos
   - ✅ Módulo completo y exportable
-- ✅ **Módulo de búsqueda de vuelos** (`modules/search`) - COMPLETO:
+- ✅ **Módulo de búsqueda de vuelos** (`modules/search`):
   - ✅ Controller con endpoint `/search/flights`
   - ✅ Service con lógica de negocio y cache
   - ✅ DTOs normalizados (request y response)
@@ -193,43 +193,43 @@ Proveedor Externo (API, BD, etc.)
 
 ```
 SearchFlightsService/
-├── dist/                    # Código compilado (generado automáticamente)
-├── node_modules/            # Dependencias (generado por pnpm)
-├── src/                     # Código fuente
+├── dist/                   # Código compilado (generado automáticamente)
+├── node_modules/           # Dependencias (generado por pnpm)
+├── src/                    # Código fuente
 │   ├── infra/              # Infraestructura técnica
-│   │   ├── cache/         # Módulo de caché Redis
-│   │   ├── logging/       # Sistema de logging
-│   │   └── resilience/    # Patrones de resiliencia
-│   ├── modules/           # Módulos de negocio
-│   │   ├── search/        # Lógica de búsqueda 
-│   │   └── providers/     # Proveedores externos
-│   │       └── amadeus/   # Integración Amadeus 
-│   ├── controllers/       # Controladores REST
-│   ├── common/            # Utilidades compartidas 
-│   ├── config/            # Configuraciones
-│   ├── app.module.ts      # Módulo raíz de la aplicación
-│   └── main.ts           # Punto de entrada de la aplicación
-├── public/                # Frontend estático (HTML, CSS, JS)
-│   ├── index.html        # Página principal del frontend
-│   ├── styles.css        # Estilos CSS
-│   └── script.js         # JavaScript del frontend
-├── test/                  # Tests end-to-end
-├── .gitignore            # Archivos ignorados por Git
-├── docker-compose.yml    # Configuración Docker para Redis
-├── eslint.config.mjs     # Configuración ESLint
-├── nest-cli.json         # Configuración NestJS CLI
-├── package.json          # Dependencias y scripts
-├── pnpm-lock.yaml        # Lock file de pnpm
-├── tsconfig.json         # Configuración TypeScript
-├── tsconfig.build.json   # Configuración TypeScript para build
-└── README.md             # Este archivo
+│   │   ├── cache/          # Módulo de caché Redis
+│   │   ├── logging/        # Sistema de logging
+│   │   └── resilience/     # Patrones de resiliencia
+│   ├── modules/            # Módulos de negocio
+│   │   ├── search/         # Lógica de búsqueda 
+│   │   └── providers/      # Proveedores externos
+│   │       └── amadeus/    # Integración Amadeus 
+│   ├── controllers/        # Controladores REST
+│   ├── common/             # Utilidades compartidas 
+│   ├── config/             # Configuraciones
+│   ├── app.module.ts       # Módulo raíz de la aplicación
+│   └── main.ts             # Punto de entrada de la aplicación
+├── public/                 # Frontend estático (HTML, CSS, JS)
+│   ├── index.html          # Página principal del frontend
+│   ├── styles.css          # Estilos CSS
+│   └── script.js           # JavaScript del frontend
+├── test/                   # Tests end-to-end
+├── .gitignore              # Archivos ignorados por Git
+├── docker-compose.yml      # Configuración Docker para Redis
+├── eslint.config.mjs       # Configuración ESLint
+├── nest-cli.json           # Configuración NestJS CLI
+├── package.json            # Dependencias y scripts
+├── pnpm-lock.yaml          # Lock file de pnpm
+├── tsconfig.json           # Configuración TypeScript
+├── tsconfig.build.json     # Configuración TypeScript para build
+└── README.md               # Este archivo
 ```
 
 ### 4.2 Descripción de Carpetas
 
 #### `src/` - Código Fuente Principal
 
-Contiene todo el código TypeScript de la aplicación. Esta es la carpeta que desarrollas y mantienes.
+Contiene todo el código TypeScript de la aplicación.
 
 #### `src/infra/` - Infraestructura
 
@@ -267,7 +267,9 @@ Contiene todo el código TypeScript de la aplicación. Esta es la carpeta que de
     - `mappers/`: Transformación de respuestas de Amadeus a formato normalizado
       - `amadeus-flight-offers.mappers.ts`: Mapea `AmadeusFlightOffersResponseDto` → `NormalizedFlightDto[]`
 
-**Decisión**: Organización por dominio facilita el mantenimiento y la escalabilidad. Separación de mappers permite cambiar proveedores sin afectar la lógica de negocio.
+**Decisión**: 
+  Organización por dominio facilita el mantenimiento y la escalabilidad. 
+  Separación de mappers permite cambiar proveedores sin afectar la lógica de negocio.
 
 #### `src/controllers/` - Controladores HTTP
 
@@ -313,16 +315,6 @@ Contiene todo el código TypeScript de la aplicación. Esta es la carpeta que de
 **Propósito**: Contiene el código JavaScript compilado desde TypeScript.
 
 **Importante**: Esta carpeta se genera automáticamente y **no debe editarse manualmente**. Se regenera cada vez que ejecutas `pnpm run build`.
-
-#### `test/` - Tests
-
-**Propósito**: Contiene los tests end-to-end de la aplicación.
-
-**Estado actual**: 
-- Estructura de testing configurada (Jest, Supertest)
-- Tests pendientes de implementación
-
-**Nota**: Aunque la estructura de testing está lista, actualmente no hay tests implementados. Se recomienda agregar tests unitarios y e2e para mejorar la calidad del código.
 
 ---
 
